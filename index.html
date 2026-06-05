@@ -8,8 +8,143 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="LynxTrack">
-<link rel="manifest" href="data:application/json;charset=utf-8,%7B%22name%22%3A%22LynxTrack%22%2C%22short_name%22%3A%22LynxTrack%22%2C%22description%22%3A%22Learn.%20Grow.%20Pounce.%22%2C%22start_url%22%3A%22.%2F%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%230a0a0f%22%2C%22theme_color%22%3A%22%230a0a0f%22%2C%22orientation%22%3A%22portrait%22%2C%22icons%22%3A%5B%7B%22src%22%3A%22data%3Aimage%2Fsvg%2Bxml%2C%253Csvg%2520xmlns%3D%2527http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%2527%2520viewBox%3D%2527-100%2520-100%2520200%2520200%2527%253E%253Ccircle%2520cx%3D%25270%2527%2520cy%3D%25270%2527%2520r%3D%2527100%2527%2520fill%3D%2527%25236d28d9%2527%2F%253E%253Ctext%2520y%3D%252740%2527%2520font-size%3D%2527120%2527%2520text-anchor%3D%2527middle%2527%253E%25F0%259F%2590%25BE%253C%2Ftext%253E%253C%2Fsvg%253E%22%2C%22sizes%22%3A%22any%22%2C%22type%22%3A%22image%2Fsvg%2Bxml%22%7D%5D%7D">
+<link rel="manifest" href="data:application/json;charset=utf-8,%7B%22name%22%3A%22LynxTrack%22%2C%22short_name%22%3A%22LynxTrack%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%230a0a0f%22%2C%22theme_color%22%3A%22%230a0a0f%22%2C%22orientation%22%3A%22portrait%22%2C%22start_url%22%3A%22.%2F%22%7D">
+<!-- Firebase SDKs -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged }
+    from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+  import { getFirestore, doc, getDoc, setDoc, onSnapshot, collection, getDocs }
+    from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
+  const firebaseConfig = {
+    apiKey: "AIzaSyCrf5ZbpFRGbXr-0jPIzjra86xp0EIgmuw",
+    authDomain: "lynxtrack-7d050.firebaseapp.com",
+    projectId: "lynxtrack-7d050",
+    storageBucket: "lynxtrack-7d050.firebasestorage.app",
+    messagingSenderId: "448796703778",
+    appId: "1:448796703778:web:ca9fbe8d5b58086305de7b"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = getFirestore(app);
+  const provider = new GoogleAuthProvider();
+
+  // ── Parent UID (set after son first logs in) ──────────────────
+  // Replace YOUR_UID_HERE with your own Google UID after first login
+  // Replace SON_UID_HERE with your son's UID after his first login
+  const PARENT_UID = 'YOUR_UID_HERE';
+  const SON_UID    = 'SON_UID_HERE';
+
+  let currentUser = null;
+  let unsubscribeSnapshot = null;
+
+  // ── Expose globals for inline onclick handlers ────────────────
+  window._fb = { auth, db, provider, signInWithPopup, signOut, doc, setDoc, getDoc, onSnapshot, getDocs, collection };
+  window._PARENT_UID = PARENT_UID;
+  window._SON_UID    = SON_UID;
+
+  // ── Auth state listener ───────────────────────────────────────
+  onAuthStateChanged(auth, async user => {
+    if (user) {
+      currentUser = user;
+      window._currentUser = user;
+      document.getElementById('auth-screen').style.display = 'none';
+      document.getElementById('main-app').style.display = 'block';
+      document.getElementById('user-avatar').textContent =
+        user.displayName ? user.displayName[0].toUpperCase() : '?';
+      document.getElementById('user-name').textContent = user.displayName || user.email;
+      document.getElementById('user-uid').textContent = 'UID: ' + user.uid;
+
+      // Show parent dashboard tab only for parent account
+      const parentTab = document.getElementById('tab-parent');
+      const parentContent = document.getElementById('tab-content-parent');
+      if (user.uid === PARENT_UID && SON_UID !== 'SON_UID_HERE') {
+        if (parentTab) parentTab.style.display = 'inline-block';
+      }
+
+      // Subscribe to this user's Firestore data
+      if (unsubscribeSnapshot) unsubscribeSnapshot();
+      const userDoc = doc(db, 'users', user.uid, 'app', 'data');
+      unsubscribeSnapshot = onSnapshot(userDoc, snap => {
+        if (snap.exists()) {
+          const saved = snap.data();
+          if (saved.logs) saved.logs.forEach(l => { if (!l.id) l.id = uid(); });
+          if (saved.tasks) saved.tasks.forEach(t => { if (!t.id) t.id = uid(); });
+          if (saved.tomorrowPlans) saved.tomorrowPlans.forEach(t => { if (!t.id) t.id = uid(); });
+          data = { ...data, ...saved };
+          if (!data.badges) data.badges = [];
+          if (!data.weeklyPointsHistory) data.weeklyPointsHistory = [];
+          if (!data.planEvents) data.planEvents = [];
+          if (!data.recurringTasks) data.recurringTasks = [];
+        }
+        autoApplyRecurring();
+        renderAll();
+      });
+
+      // If parent, also load son's data for dashboard
+      if (user.uid === PARENT_UID && SON_UID !== 'SON_UID_HERE') {
+        loadSonData();
+      }
+
+    } else {
+      currentUser = null;
+      window._currentUser = null;
+      document.getElementById('auth-screen').style.display = 'flex';
+      document.getElementById('main-app').style.display = 'none';
+      if (unsubscribeSnapshot) { unsubscribeSnapshot(); unsubscribeSnapshot = null; }
+    }
+  });
+
+  // ── Save to Firestore instead of localStorage ─────────────────
+  window._saveToFirestore = async function(dataObj) {
+    if (!window._currentUser) return;
+    try {
+      const userDoc = doc(db, 'users', window._currentUser.uid, 'app', 'data');
+      await setDoc(userDoc, dataObj);
+    } catch(e) {
+      console.error('Firestore save error:', e);
+      showToast('⚠️ Save failed. Check connection.');
+    }
+  };
+
+  // ── Load son's data for parent dashboard ─────────────────────
+  window.loadSonData = async function() {
+    if (SON_UID === 'SON_UID_HERE') return;
+    try {
+      const sonDoc = doc(db, 'users', SON_UID, 'app', 'data');
+      const snap = await getDoc(sonDoc);
+      if (snap.exists()) {
+        window._sonData = snap.data();
+        renderParentDashboard(window._sonData);
+      } else {
+        renderParentDashboard(null);
+      }
+    } catch(e) {
+      console.error('Error loading son data:', e);
+    }
+  };
+
+  // ── Sign in / out ─────────────────────────────────────────────
+  window.signInWithGoogle = async function() {
+    try {
+      document.getElementById('signin-btn').textContent = 'Signing in...';
+      await signInWithPopup(auth, provider);
+    } catch(e) {
+      document.getElementById('signin-btn').textContent = 'Sign in with Google';
+      if (e.code !== 'auth/popup-closed-by-user') {
+        showToast('Sign-in failed: ' + e.message);
+      }
+    }
+  };
+
+  window.signOutUser = async function() {
+    if (!confirm('Sign out of LynxTrack?')) return;
+    await signOut(auth);
+  };
+
+</script>
 <title>LynxTrack v6.0 Enterprise</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -18,17 +153,14 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <style>
   
-  /* ── PWA / Safe Area ── */
-  body {
-    padding-top: env(safe-area-inset-top);
-    padding-bottom: env(safe-area-inset-bottom);
-    padding-left: env(safe-area-inset-left);
-    padding-right: env(safe-area-inset-right);
-  }
-  /* Prevent tap highlight flicker on mobile */
+  /* ── PWA Safe Area ── */
+  body { padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); }
   * { -webkit-tap-highlight-color: transparent; }
-  /* Prevent text size adjustment on orientation change */
   html { -webkit-text-size-adjust: 100%; }
+  /* Auth screen */
+  #auth-screen { display:flex; flex-direction:column; align-items:center; justify-content:center;
+    min-height:100vh; background:#09090b; gap:1.5rem; }
+  #main-app { display:none; }
 
   body { font-family: 'Inter', system-ui, sans-serif; }
   .card { transition: transform 0.3s cubic-bezier(0.4,0,0.2,1), box-shadow 0.3s cubic-bezier(0.4,0,0.2,1); }
@@ -56,6 +188,47 @@
 </head>
 <body class="bg-zinc-950 text-zinc-100 min-h-screen">
 
+<!-- ── Auth Screen ── -->
+<div id="auth-screen">
+  <div style="text-align:center">
+    <div style="width:72px;height:72px;background:#6d28d9;border-radius:20px;display:flex;align-items:center;justify-content:center;font-size:36px;margin:0 auto 1rem">🐾</div>
+    <h1 style="font-size:2rem;font-weight:700;color:#f4f4f5;margin:0">LynxTrack</h1>
+    <p style="color:#71717a;margin:.5rem 0 2rem">Learn. Grow. Pounce.</p>
+  </div>
+  <button id="signin-btn" onclick="signInWithGoogle()"
+    style="display:flex;align-items:center;gap:.75rem;background:#fff;color:#1f1f1f;border:none;
+    padding:.875rem 1.75rem;border-radius:12px;font-size:1rem;font-weight:600;cursor:pointer;
+    box-shadow:0 2px 12px rgba(0,0,0,.4)">
+    <svg width="20" height="20" viewBox="0 0 48 48">
+      <path fill="#FFC107" d="M43.6 20H24v8h11.3C33.7 32.7 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3 0 5.8 1.1 7.9 3l5.7-5.7C34.1 6.5 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20c11 0 19.6-8 19.6-20 0-1.3-.1-2.7-.4-4z"/>
+      <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.5 15.1 18.9 12 24 12c3 0 5.8 1.1 7.9 3l5.7-5.7C34.1 6.5 29.3 4 24 4 16.3 4 9.7 8.4 6.3 14.7z"/>
+      <path fill="#4CAF50" d="M24 44c5.2 0 9.9-1.9 13.5-5l-6.2-5.2C29.5 35.5 26.9 36 24 36c-5.2 0-9.7-3.3-11.3-8H6.1C9.4 35.6 16.2 44 24 44z"/>
+      <path fill="#1976D2" d="M43.6 20H24v8h11.3c-.8 2.3-2.3 4.3-4.2 5.8l6.2 5.2C40.9 35.6 44 30.2 44 24c0-1.3-.1-2.7-.4-4z"/>
+    </svg>
+    Sign in with Google
+  </button>
+  <p style="color:#52525b;font-size:.75rem;text-align:center;max-width:260px">
+    Your data is private and synced across all your devices.
+  </p>
+</div>
+
+<!-- ── Main App ── -->
+<div id="main-app">
+<!-- ── User bar ── -->
+<div style="position:fixed;top:0;right:0;z-index:500;padding:.5rem .75rem;display:flex;align-items:center;gap:.5rem">
+  <div style="display:flex;align-items:center;gap:.5rem;background:#18181b;border:1px solid #27272a;border-radius:10px;padding:.35rem .6rem;cursor:pointer" onclick="document.getElementById('user-panel').classList.toggle('hidden')">
+    <div style="width:28px;height:28px;background:#6d28d9;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.8rem;font-weight:700;color:white" id="user-avatar">?</div>
+    <i class="fas fa-chevron-down" style="font-size:.65rem;color:#71717a"></i>
+  </div>
+  <div id="user-panel" class="hidden" style="position:absolute;top:3rem;right:.75rem;background:#18181b;border:1px solid #27272a;border-radius:12px;padding:1rem;min-width:220px;box-shadow:0 8px 24px rgba(0,0,0,.5)">
+    <div style="font-size:.8rem;font-weight:600;color:#f4f4f5;margin-bottom:.15rem" id="user-name"></div>
+    <div style="font-size:.65rem;color:#52525b;margin-bottom:.75rem;font-family:monospace" id="user-uid"></div>
+    <hr style="border-color:#27272a;margin-bottom:.75rem">
+    <button onclick="signOutUser()" style="width:100%;background:#27272a;color:#f87171;border:none;padding:.5rem;border-radius:8px;cursor:pointer;font-size:.8rem;font-weight:600">
+      <i class="fas fa-sign-out-alt"></i> Sign out
+    </button>
+  </div>
+</div>
 <div id="toast" class="toast"></div>
 
 <!-- ── Submit Weekly Log Modal ── -->
@@ -264,6 +437,7 @@
     <button onclick="switchTab(5)" id="tab-5" class="px-6 py-4 font-medium flex-1 md:flex-none text-zinc-400 hover:text-zinc-200">🏆 Points & Badges</button>
     <button onclick="switchTab(6)" id="tab-6" class="px-6 py-4 font-medium flex-1 md:flex-none text-zinc-400 hover:text-zinc-200">🎯 6-Month Goals</button>
     <button onclick="switchTab(7)" id="tab-7" class="px-6 py-4 font-medium flex-1 md:flex-none text-zinc-400 hover:text-zinc-200">🔁 Recurring</button>
+    <button onclick="switchTab(8)" id="tab-parent" style="display:none" class="px-6 py-4 font-medium flex-1 md:flex-none text-zinc-400 hover:text-zinc-200">👨‍👦 Dashboard</button>
   </div>
 
   <!-- ════════════════ TODAY TAB ════════════════ -->
@@ -853,6 +1027,8 @@ function catColor(c){ return CAT_COLORS[c]||'#a1a1aa'; }
 
 // ─── Persistence ──────────────────────────────────────────────
 function loadData(){
+  // Primary load is via Firestore onSnapshot (set up in Firebase module)
+  // This function handles localStorage migration / offline fallback
   try{
     const s=localStorage.getItem('lynx_v6')||localStorage.getItem('lynx_v5')||localStorage.getItem('lynx_v4');
     if(s){
@@ -871,7 +1047,12 @@ function loadData(){
   renderAll();
 }
 function saveData(){
-  try{ localStorage.setItem('lynx_v6',JSON.stringify(data)); }catch(e){ showToast('⚠️ Storage full.'); }
+  // Save to Firestore if signed in, localStorage as fallback
+  if(window._currentUser && window._saveToFirestore){
+    window._saveToFirestore(data);
+  } else {
+    try{ localStorage.setItem('lynx_v6',JSON.stringify(data)); }catch(e){ showToast('⚠️ Storage full.'); }
+  }
   renderAll();
 }
 
@@ -2543,7 +2724,115 @@ function renderPointsSummary(){
 // renderAll defined above — duplicate removed
 
 // ─── Boot ─────────────────────────────────────────────────────
-window.onload=()=>{ loadData(); autoApplyRecurring(); switchTab(0); setMode('log'); updateFutureImpactHint(); };
+
+// ─── Parent Dashboard ─────────────────────────────────────────
+function renderParentDashboard(sonData) {
+  const el = document.getElementById('parent-dashboard-content');
+  if (!el) return;
+
+  if (!sonData) {
+    el.innerHTML = '<div class="text-zinc-500 text-center py-12"><i class="fas fa-user-clock text-3xl mb-3 block text-zinc-600"></i><p>Your son hasn't logged in yet.</p><p class="text-xs mt-2">Once he signs in and logs some activities, you'll see his data here.</p></div>';
+    return;
+  }
+
+  const logs = sonData.logs || [];
+  const tasks = sonData.tasks || [];
+  const weekGoal = sonData.weekGoal || 40;
+  const badges = sonData.badges || [];
+  const submissions = sonData.weeklyPointsHistory || [];
+
+  // Week hours
+  const wk = getWeekKey();
+  const weekLogs = logs.filter(l => {
+    const d = new Date(l.date + 'T12:00:00');
+    return getWeekKeyFor(d) === wk;
+  });
+  const weekHrs = weekLogs.reduce((s, l) => s + (l.hours || 0), 0);
+  const pct = Math.min(100, Math.round((weekHrs / weekGoal) * 100));
+
+  // Category breakdown this week
+  const catMap = {};
+  weekLogs.forEach(l => {
+    catMap[l.category] = (catMap[l.category] || 0) + (l.hours || 0);
+  });
+  const cats = Object.entries(catMap).sort((a,b) => b[1]-a[1]);
+
+  // Points
+  const CAT_RATES = {Career:8,Learning:7,Fitness:5,Working:6,'Personal/Family':4,Volunteering:6,'Me Time':3};
+  let pts = 0;
+  weekLogs.forEach(l => { pts += (l.hours||0) * (CAT_RATES[l.category]||5); });
+  pts = Math.round(pts);
+
+  // Recent logs (last 7 days)
+  const recent = [...logs].sort((a,b) => new Date(b.date)-new Date(a.date)).slice(0,10);
+
+  const catColors = {Career:'#fb923c',Learning:'#a78bfa',Fitness:'#38bdf8',Working:'#34d399','Personal/Family':'#f472b6',Volunteering:'#4ade80','Me Time':'#fbbf24'};
+
+  el.innerHTML = `
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+      <div class="card bg-zinc-900 rounded-3xl p-5">
+        <div class="text-zinc-400 text-sm mb-2">This Week</div>
+        <div class="text-4xl font-bold text-emerald-400">${weekHrs.toFixed(1)}<span class="text-zinc-500 text-lg font-normal"> / ${weekGoal}h</span></div>
+        <div class="h-2 bg-zinc-800 rounded-full mt-3 overflow-hidden">
+          <div class="h-full bg-emerald-400 rounded-full" style="width:${pct}%"></div>
+        </div>
+        <div class="text-emerald-400 text-sm mt-1">${pct}% of weekly goal</div>
+      </div>
+      <div class="card bg-zinc-900 rounded-3xl p-5">
+        <div class="text-zinc-400 text-sm mb-2">Points This Week</div>
+        <div class="text-4xl font-bold text-violet-400">${pts}</div>
+        <div class="text-zinc-500 text-xs mt-2">${pts >= 300 ? '✅ Allowance earned!' : (300 - pts) + ' pts to allowance'}</div>
+      </div>
+      <div class="card bg-zinc-900 rounded-3xl p-5">
+        <div class="text-zinc-400 text-sm mb-2">Activities Logged</div>
+        <div class="text-4xl font-bold text-sky-400">${weekLogs.length}</div>
+        <div class="text-zinc-500 text-xs mt-2">this week · ${logs.length} total</div>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div class="card bg-zinc-900 rounded-3xl p-5">
+        <h3 class="font-semibold mb-4">Category Breakdown — This Week</h3>
+        ${cats.length ? cats.map(([cat, hrs]) => `
+          <div class="flex items-center gap-3 mb-3">
+            <div class="w-2.5 h-2.5 rounded-full shrink-0" style="background:${catColors[cat]||'#888'}"></div>
+            <div class="flex-1 text-sm text-zinc-300">${cat}</div>
+            <div class="w-32 h-2 bg-zinc-800 rounded-full overflow-hidden">
+              <div class="h-full rounded-full" style="width:${Math.min(100,(hrs/weekHrs)*100)}%;background:${catColors[cat]||'#888'}"></div>
+            </div>
+            <div class="text-sm text-zinc-400 w-10 text-right">${hrs.toFixed(1)}h</div>
+          </div>
+        `).join('') : '<p class="text-zinc-600 text-sm">No activity this week yet.</p>'}
+      </div>
+
+      <div class="card bg-zinc-900 rounded-3xl p-5">
+        <h3 class="font-semibold mb-4">Recent Activity</h3>
+        <div class="space-y-2">
+          ${recent.length ? recent.map(l => `
+            <div class="flex items-start gap-3 py-1.5 border-b border-zinc-800">
+              <div class="w-2 h-2 rounded-full mt-1.5 shrink-0" style="background:${catColors[l.category]||'#888'}"></div>
+              <div class="flex-1 min-w-0">
+                <div class="text-sm text-zinc-200 truncate">${esc(l.activity)}</div>
+                <div class="text-xs text-zinc-500">${l.category} · ${l.date}</div>
+              </div>
+              <div class="text-sm text-violet-400 shrink-0">${l.hours}h</div>
+            </div>
+          `).join('') : '<p class="text-zinc-600 text-sm">No activity logged yet.</p>'}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// Helper to get week key for any date
+function getWeekKeyFor(d) {
+  const day = d.getDay();
+  const diff = d.getDate() - day + (day===0 ? -6 : 1);
+  const mon = new Date(d.setDate(diff));
+  return mon.toISOString().slice(0,10);
+}
+
+window.onload=()=>{ switchTab(0); setMode('log'); updateFutureImpactHint(); /* loadData called by Firestore onSnapshot */ };
 </script>
 
 <style>
@@ -2591,94 +2880,67 @@ function restoreLynxBackup(){
 </script>
 
 
-<!-- ── PWA: Service Worker + Install Prompt ── -->
+  <!-- ════════════════ PARENT DASHBOARD TAB ════════════════ -->
+  <div id="tab-content-8" class="tab-content hidden">
+    <div class="max-w-4xl mx-auto space-y-6">
+      <div class="flex items-center justify-between">
+        <div>
+          <h2 class="text-2xl font-bold flex items-center gap-3">
+            <i class="fas fa-binoculars text-violet-400"></i> Your Son's Activity
+          </h2>
+          <p class="text-zinc-400 text-sm mt-1">Read-only view — refreshes automatically</p>
+        </div>
+        <button onclick="window.loadSonData && window.loadSonData()"
+          class="px-4 py-2 text-xs bg-zinc-800 hover:bg-zinc-700 rounded-xl flex items-center gap-2 text-zinc-300">
+          <i class="fas fa-refresh"></i> Refresh
+        </button>
+      </div>
+
+      <div id="parent-dashboard-content">
+        <div class="text-zinc-500 text-center py-12">
+          <i class="fas fa-spinner fa-spin text-2xl mb-3 block"></i>
+          Loading your son's data...
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- end main-app -->
+
+<!-- ── PWA Service Worker ── -->
 <script>
-// ── Service Worker Registration ──────────────────────────────
 if ('serviceWorker' in navigator) {
   const swCode = `
-const CACHE = 'lynxtrack-v1';
-const ASSETS = [
-  'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap',
-  'https://cdn.tailwindcss.com',
-  'https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js',
-  'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css'
-];
-self.addEventListener('install', e => {
-  e.waitUntil(
-    caches.open(CACHE).then(c => {
-      return Promise.allSettled(ASSETS.map(a => c.add(a).catch(() => {})));
-    }).then(() => self.skipWaiting())
-  );
-});
+const CACHE = 'lynxtrack-v2';
+self.addEventListener('install', e => { self.skipWaiting(); });
 self.addEventListener('activate', e => {
-  e.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
-    ).then(() => self.clients.claim())
-  );
+  e.waitUntil(caches.keys().then(keys =>
+    Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))
+  ).then(()=>self.clients.claim()));
 });
 self.addEventListener('fetch', e => {
-  if (e.request.method !== 'GET') return;
+  if(e.request.method!=='GET') return;
+  if(e.request.url.includes('firestore.googleapis.com') ||
+     e.request.url.includes('googleapis.com/identitytoolkit') ||
+     e.request.url.includes('securetoken')) return;
   e.respondWith(
-    caches.match(e.request).then(cached => {
-      if (cached) return cached;
-      return fetch(e.request).then(res => {
-        if (res && res.status === 200 && res.type === 'basic') {
-          const clone = res.clone();
-          caches.open(CACHE).then(c => c.put(e.request, clone));
-        }
-        return res;
-      }).catch(() => cached);
-    })
+    fetch(e.request).catch(() => caches.match(e.request))
   );
 });
 `;
-  const blob = new Blob([swCode], { type: 'application/javascript' });
-  const swUrl = URL.createObjectURL(blob);
-  navigator.serviceWorker.register(swUrl)
-    .then(() => console.log('[LynxTrack] Service worker registered'))
-    .catch(e => console.warn('[LynxTrack] SW registration skipped:', e.message));
+  const blob = new Blob([swCode], {type:'application/javascript'});
+  navigator.serviceWorker.register(URL.createObjectURL(blob))
+    .then(()=>console.log('[LynxTrack] SW ready'))
+    .catch(e=>console.warn('[LynxTrack] SW:', e.message));
 }
 
-// ── Install Prompt (Add to Home Screen banner) ───────────────
-let deferredPrompt = null;
-const installBanner = document.createElement('div');
-installBanner.id = 'lt-install-banner';
-installBanner.style.cssText = `
-  display:none; position:fixed; bottom:1.5rem; left:50%; transform:translateX(-50%);
-  background:#18181b; border:1px solid #3f3f46; border-radius:1rem;
-  padding:.75rem 1.25rem; z-index:9999; align-items:center; gap:.75rem;
-  white-space:nowrap; box-shadow:0 4px 24px rgba(0,0,0,.5);
-  font-family:Inter,system-ui,sans-serif; font-size:.875rem; color:#f4f4f5;
-`;
-installBanner.innerHTML = `
-  <span>🐾 Install LynxTrack</span>
-  <button id="lt-install-yes" style="background:#7c3aed;color:white;border:none;padding:.4rem .9rem;border-radius:.5rem;cursor:pointer;font-size:.8rem;font-weight:600">Add to Home Screen</button>
-  <button id="lt-install-no" style="background:none;border:none;color:#71717a;cursor:pointer;font-size:1rem;padding:0 .25rem">✕</button>
-`;
-document.body.appendChild(installBanner);
-
+// Install banner
+let _deferredPrompt = null;
 window.addEventListener('beforeinstallprompt', e => {
-  e.preventDefault();
-  deferredPrompt = e;
-  installBanner.style.display = 'flex';
-});
-
-document.getElementById('lt-install-yes').addEventListener('click', () => {
-  installBanner.style.display = 'none';
-  if (deferredPrompt) {
-    deferredPrompt.prompt();
-    deferredPrompt.userChoice.then(() => { deferredPrompt = null; });
-  }
-});
-document.getElementById('lt-install-no').addEventListener('click', () => {
-  installBanner.style.display = 'none';
-});
-
-window.addEventListener('appinstalled', () => {
-  installBanner.style.display = 'none';
-  deferredPrompt = null;
-  console.log('[LynxTrack] App installed');
+  e.preventDefault(); _deferredPrompt = e;
+  const b = document.createElement('div');
+  b.innerHTML = '<div style="position:fixed;bottom:1.5rem;left:50%;transform:translateX(-50%);background:#18181b;border:1px solid #3f3f46;border-radius:1rem;padding:.75rem 1.25rem;z-index:9999;display:flex;align-items:center;gap:.75rem;font-size:.875rem;color:#f4f4f5;white-space:nowrap;box-shadow:0 4px 24px rgba(0,0,0,.5)" id="lt-banner"><span>🐾 Install LynxTrack</span><button onclick="_deferredPrompt&&(_deferredPrompt.prompt(),_deferredPrompt=null);document.getElementById("lt-banner").remove()" style="background:#7c3aed;color:white;border:none;padding:.4rem .9rem;border-radius:.5rem;cursor:pointer;font-size:.8rem;font-weight:600">Add to Home Screen</button><button onclick="this.parentElement.remove()" style="background:none;border:none;color:#71717a;cursor:pointer;font-size:1.1rem">✕</button></div>';
+  document.body.appendChild(b);
 });
 </script>
 
