@@ -1,0 +1,2686 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0a0a0f">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="LynxTrack">
+<link rel="manifest" href="data:application/json;charset=utf-8,%7B%22name%22%3A%22LynxTrack%22%2C%22short_name%22%3A%22LynxTrack%22%2C%22description%22%3A%22Learn.%20Grow.%20Pounce.%22%2C%22start_url%22%3A%22.%2F%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%230a0a0f%22%2C%22theme_color%22%3A%22%230a0a0f%22%2C%22orientation%22%3A%22portrait%22%2C%22icons%22%3A%5B%7B%22src%22%3A%22data%3Aimage%2Fsvg%2Bxml%2C%253Csvg%2520xmlns%3D%2527http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%2527%2520viewBox%3D%2527-100%2520-100%2520200%2520200%2527%253E%253Ccircle%2520cx%3D%25270%2527%2520cy%3D%25270%2527%2520r%3D%2527100%2527%2520fill%3D%2527%25236d28d9%2527%2F%253E%253Ctext%2520y%3D%252740%2527%2520font-size%3D%2527120%2527%2520text-anchor%3D%2527middle%2527%253E%25F0%259F%2590%25BE%253C%2Ftext%253E%253C%2Fsvg%253E%22%2C%22sizes%22%3A%22any%22%2C%22type%22%3A%22image%2Fsvg%2Bxml%22%7D%5D%7D">
+
+<title>LynxTrack v6.0 Enterprise</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+  
+  /* ── PWA / Safe Area ── */
+  body {
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+  /* Prevent tap highlight flicker on mobile */
+  * { -webkit-tap-highlight-color: transparent; }
+  /* Prevent text size adjustment on orientation change */
+  html { -webkit-text-size-adjust: 100%; }
+
+  body { font-family: 'Inter', system-ui, sans-serif; }
+  .card { transition: transform 0.3s cubic-bezier(0.4,0,0.2,1), box-shadow 0.3s cubic-bezier(0.4,0,0.2,1); }
+  .card:hover { transform: translateY(-4px); box-shadow: 0 20px 25px -5px rgb(0 0 0/.15),0 8px 10px -6px rgb(0 0 0/.1); }
+  .progress-bar { transition: width 1s ease-in-out; }
+  .tab-active { border-bottom: 3px solid rgb(139 92 246); color: white; }
+  .mode-btn { transition: all .2s; }
+  .mode-btn.active-log  { background: rgb(124 58 237); color: white; }
+  .mode-btn.active-plan { background: rgb(29 78 216); color: white; }
+  .error-msg { color:#f87171; font-size:.75rem; margin-top:4px; display:none; }
+  .error-msg.visible { display:block; }
+  .toast { position:fixed; bottom:1.5rem; left:50%; transform:translateX(-50%); background:#18181b; border:1px solid #3f3f46; border-radius:1rem; padding:.75rem 1.25rem; font-size:.875rem; z-index:1000; opacity:0; transition:opacity .3s; pointer-events:none; white-space:nowrap; max-width:90vw; }
+  .toast.show { opacity:1; }
+  .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.75); z-index:200; display:flex; align-items:center; justify-content:center; padding:1rem; backdrop-filter:blur(4px); }
+  .modal-overlay.hidden { display:none; }
+  .modal-box { background:#18181b; border:1px solid #3f3f46; border-radius:1.5rem; padding:2rem; max-width:520px; width:100%; max-height:90vh; overflow-y:auto; }
+  .submit-badge-urgent { animation:pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.6} }
+  .submitted-stamp { display:inline-flex; align-items:center; gap:4px; background:#052e16; color:#4ade80; border:1px solid #166534; font-size:.7rem; padding:2px 8px; border-radius:9999px; }
+  .plan-action-btn { display:inline-flex; align-items:center; gap:4px; font-size:.7rem; padding:3px 9px; border-radius:9999px; border:1px solid; cursor:pointer; transition:all .15s; }
+  .cat-sort-btn { transition: all .15s; cursor:pointer; }
+  .rec-day-btn.active-day { border-color: #16a34a!important; background:#052e16!important; color:#4ade80!important; }
+  .active-sort { border-color:rgb(109 40 217)!important; background:rgb(76 29 149)!important; color:rgb(196 181 253)!important; }
+</style>
+</head>
+<body class="bg-zinc-950 text-zinc-100 min-h-screen">
+
+<div id="toast" class="toast"></div>
+
+<!-- ── Submit Weekly Log Modal ── -->
+<div id="submit-modal" class="modal-overlay hidden" onclick="if(event.target===this)closeSubmitModal()">
+  <div class="modal-box">
+    <div class="flex items-center justify-between mb-6">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 bg-emerald-700 rounded-2xl flex items-center justify-center text-xl">📋</div>
+        <div>
+          <h2 class="text-xl font-bold">Submit Weekly Log</h2>
+          <p class="text-zinc-400 text-sm" id="modal-week-label"></p>
+        </div>
+      </div>
+      <button onclick="closeSubmitModal()" class="text-zinc-500 hover:text-zinc-200 text-xl px-2">✕</button>
+    </div>
+    <div id="modal-summary" class="space-y-3 mb-6"></div>
+    <div class="bg-zinc-800 rounded-2xl p-4 mb-6">
+      <label class="text-sm text-zinc-400 block mb-2">Week reflection <span class="text-zinc-600">(optional)</span></label>
+      <textarea id="submit-reflection" rows="3" placeholder="What was your biggest win? What will you do differently?"
+        class="w-full bg-zinc-900 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none text-zinc-100 placeholder-zinc-600"></textarea>
+    </div>
+    <div class="flex gap-3">
+      <button onclick="closeSubmitModal()" class="flex-1 py-3 rounded-2xl bg-zinc-800 hover:bg-zinc-700 text-sm font-medium">Cancel</button>
+      <button onclick="confirmSubmit()" class="flex-1 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-500 font-semibold text-sm flex items-center justify-center gap-2">
+        <i class="fas fa-paper-plane"></i> Submit Log
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Hours Confirmation Modal (completing a planned task) ── -->
+<div id="hrs-modal" class="modal-overlay hidden" onclick="if(event.target===this)closeHrsModal()">
+  <div class="modal-box" style="max-width:320px">
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="text-lg font-bold">How long did it take?</h2>
+      <button onclick="closeHrsModal()" class="text-zinc-500 hover:text-zinc-200 text-xl px-2">✕</button>
+    </div>
+    <p class="text-sm text-zinc-400 mb-4 truncate" id="hrs-modal-task"></p>
+    <input id="hrs-modal-input" type="number" step="0.25" min="0.25" max="24" value="1"
+      class="w-full text-center text-4xl font-bold bg-zinc-800 rounded-2xl py-4 focus:outline-none focus:ring-2 focus:ring-violet-500 mb-2">
+    <p class="text-xs text-zinc-500 text-center mb-6">actual hours spent</p>
+    <button onclick="confirmComplete()" class="w-full py-3 rounded-2xl bg-violet-600 hover:bg-violet-500 font-semibold">Mark Complete ✓</button>
+  </div>
+</div>
+
+<!-- ── History Action Modal ── -->
+<div id="hist-modal" class="modal-overlay hidden" onclick="if(event.target===this)closeHistModal()">
+  <div class="modal-box" style="max-width:380px">
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="text-lg font-bold">Re-use this activity</h2>
+      <button onclick="closeHistModal()" class="text-zinc-500 hover:text-zinc-200 text-xl px-2">✕</button>
+    </div>
+    <p class="text-sm text-zinc-400 mb-1">Activity</p>
+    <p class="font-semibold mb-4 truncate" id="hist-modal-title"></p>
+    <div class="mb-4">
+      <label class="text-xs text-zinc-500 block mb-1">Hours</label>
+      <input id="hist-modal-hrs" type="number" step="0.25" min="0.25" max="24" value="1" placeholder="e.g. 1.5"
+        class="w-full bg-zinc-800 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-violet-500 text-zinc-100 placeholder-zinc-600">
+    </div>
+    <div class="flex gap-3 mt-2">
+      <button onclick="histAddToToday()" class="flex-1 py-3 rounded-2xl bg-violet-700 hover:bg-violet-600 font-semibold text-sm flex items-center justify-center gap-2">
+        <i class="fas fa-calendar-day"></i> Plan for Today
+      </button>
+      <button onclick="histAddToTmr()" class="flex-1 py-3 rounded-2xl bg-indigo-700 hover:bg-indigo-600 font-semibold text-sm flex items-center justify-center gap-2">
+        <i class="fas fa-moon"></i> Plan for Tomorrow
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Edit Entry Modal ── -->
+<div id="edit-modal" class="modal-overlay hidden" onclick="if(event.target===this)closeEditModal()">
+  <div class="modal-box" style="max-width:460px">
+    <div class="flex items-center justify-between mb-5">
+      <h2 class="text-lg font-bold flex items-center gap-2"><i class="fas fa-pen text-violet-400"></i> Edit Entry</h2>
+      <button onclick="closeEditModal()" class="text-zinc-500 hover:text-zinc-200 text-xl px-2">✕</button>
+    </div>
+    <div class="space-y-4">
+      <div>
+        <label class="text-xs text-zinc-500 block mb-1">Activity</label>
+        <input id="edit-activity" type="text" class="w-full bg-zinc-800 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-violet-500 text-zinc-100 placeholder-zinc-600" placeholder="Activity name">
+      </div>
+      <div class="flex gap-3">
+        <div class="flex-1">
+          <label class="text-xs text-zinc-500 block mb-1" id="edit-hours-label">Hours</label>
+          <input id="edit-hours" type="number" step="0.25" min="0.25" max="24" class="w-full bg-zinc-800 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-violet-500 text-zinc-100" placeholder="e.g. 1.5">
+        </div>
+        <div class="flex-1">
+          <label class="text-xs text-zinc-500 block mb-1">Category</label>
+          <select id="edit-category" class="w-full bg-zinc-800 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-violet-500">
+            <option value="Career">Career</option>
+            <option value="Learning">Learning</option>
+            <option value="Fitness">Fitness</option>
+            <option value="Working">Working</option>
+            <option value="Personal/Family">Personal/Family</option>
+            <option value="Volunteering">Volunteering</option>
+            <option value="Me Time">Me Time</option>
+          </select>
+        </div>
+      </div>
+      <div id="edit-date-row">
+        <label class="text-xs text-zinc-500 block mb-1">Date</label>
+        <input id="edit-date" type="date" class="w-full bg-zinc-800 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-violet-500 text-zinc-100">
+      </div>
+      <div>
+        <label class="text-xs text-zinc-500 block mb-1">Future Impact</label>
+        <input id="edit-impact" type="text" class="w-full bg-zinc-800 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-violet-500 text-zinc-100 placeholder-zinc-600" placeholder="Builds compound skills…">
+      </div>
+    </div>
+    <div class="flex gap-3 mt-6">
+      <button onclick="closeEditModal()" class="flex-1 py-3 rounded-2xl bg-zinc-800 hover:bg-zinc-700 text-sm font-medium">Cancel</button>
+      <button onclick="saveEdit()" class="flex-1 py-3 rounded-2xl bg-violet-600 hover:bg-violet-500 font-semibold text-sm flex items-center justify-center gap-2">
+        <i class="fas fa-check"></i> Save Changes
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Future Plans Modal (calendar picker) ── -->
+<div id="future-plan-modal" class="modal-overlay hidden" onclick="if(event.target===this)closeFuturePlanModal()">
+  <div class="modal-box" style="max-width:460px">
+    <div class="flex items-center justify-between mb-5">
+      <h2 class="text-lg font-bold flex items-center gap-2"><i class="fas fa-calendar-days text-emerald-400"></i> Plan a Future Activity</h2>
+      <button onclick="closeFuturePlanModal()" class="text-zinc-500 hover:text-zinc-200 text-xl px-2">✕</button>
+    </div>
+    <div class="space-y-4">
+      <div>
+        <label class="text-xs text-zinc-500 block mb-1">Activity</label>
+        <input id="fp-activity" type="text" class="w-full bg-zinc-800 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-zinc-100 placeholder-zinc-600"
+          placeholder="What will you do?" onkeydown="if(event.key==='Enter')saveFuturePlan()">
+      </div>
+      <div>
+        <label class="text-xs text-zinc-500 block mb-1">Date</label>
+        <input id="fp-date" type="date" class="w-full bg-zinc-800 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-zinc-100" onchange="updateFpDateLabel()">
+        <p id="fp-date-label" class="text-xs mt-1 text-zinc-500"></p>
+      </div>
+      <div class="flex gap-3">
+        <div class="flex-1">
+          <label class="text-xs text-zinc-500 block mb-1">Hours planned</label>
+          <input id="fp-hours" type="number" step="0.25" min="0.25" max="24" value="1" class="w-full bg-zinc-800 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-zinc-100" placeholder="e.g. 2">
+        </div>
+        <div class="flex-1">
+          <label class="text-xs text-zinc-500 block mb-1">Category</label>
+          <select id="fp-category" class="w-full bg-zinc-800 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+            <option value="Career">Career</option>
+            <option value="Learning">Learning</option>
+            <option value="Fitness">Fitness</option>
+            <option value="Working">Working</option>
+            <option value="Personal/Family">Personal/Family</option>
+            <option value="Volunteering">Volunteering</option>
+            <option value="Me Time">Me Time</option>
+          </select>
+        </div>
+      </div>
+      <div>
+        <label class="text-xs text-zinc-500 block mb-1">Future Impact</label>
+        <input id="fp-impact" type="text" class="w-full bg-zinc-800 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-zinc-100 placeholder-zinc-600"
+          placeholder="Why this matters…" onkeydown="if(event.key==='Enter')saveFuturePlan()">
+      </div>
+    </div>
+    <div class="flex gap-3 mt-6">
+      <button onclick="closeFuturePlanModal()" class="flex-1 py-3 rounded-2xl bg-zinc-800 hover:bg-zinc-700 text-sm font-medium">Cancel</button>
+      <button onclick="saveFuturePlan()" class="flex-1 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-500 font-semibold text-sm flex items-center justify-center gap-2">
+        <i class="fas fa-calendar-plus"></i> Add to Schedule
+      </button>
+    </div>
+  </div>
+</div>
+
+<div class="max-w-6xl mx-auto p-6">
+
+  <!-- Header -->
+<div class="flex items-center justify-between mb-8">
+  <div class="flex items-center gap-3">
+    <div class="w-10 h-10 bg-violet-700 rounded-2xl flex items-center justify-center text-xl">🐾</div>
+    <div>
+      <h1 class="text-3xl font-bold tracking-tight">LynxTrack <span class="text-violet-400">v6.1</span></h1>
+      <p class="text-zinc-400 text-sm">Learn. Grow. Pounce.</p>
+    </div>
+  </div>
+  <div class="flex items-center gap-4">
+    <!-- 🔥 STREAK (this was missing) -->
+    <div id="streak-display" class="flex items-center gap-2 bg-zinc-900 px-5 py-2 rounded-3xl cursor-pointer hover:bg-zinc-800 transition-colors">
+      <i class="fas fa-fire text-orange-400"></i>
+      <span id="streak-count" class="font-semibold text-orange-400">0 day streak</span>
+    </div>
+    <div id="current-date" class="text-sm text-zinc-400"></div>
+    <button id="submit-btn" onclick="openSubmitModal()" class="px-4 py-2 text-xs bg-emerald-900 hover:bg-emerald-800 text-emerald-400 rounded-xl flex items-center gap-2">
+      <i class="fas fa-paper-plane"></i> <span id="submit-btn-label">Submit Log</span>
+    </button>
+    <button onclick="resetAllData()" class="px-4 py-2 text-xs bg-zinc-900 hover:bg-red-950 text-red-400 rounded-xl flex items-center gap-2">
+      <i class="fas fa-trash"></i> Clear All
+    </button>
+  </div>
+</div>
+
+  <div id="submit-banner" class="hidden mb-5"></div>
+
+  <!-- Tabs -->
+  <div class="flex border-b border-zinc-800 mb-6">
+    <button onclick="switchTab(0)" id="tab-0" class="tab-active px-6 py-4 font-medium flex-1 md:flex-none">Today</button>
+    <button onclick="switchTab(1)" id="tab-1" class="px-6 py-4 font-medium flex-1 md:flex-none text-zinc-400 hover:text-zinc-200">Tomorrow</button>
+    <button onclick="switchTab(2)" id="tab-2" class="px-6 py-4 font-medium flex-1 md:flex-none text-zinc-400 hover:text-zinc-200">Analytics</button>
+    <button onclick="switchTab(3)" id="tab-3" class="px-6 py-4 font-medium flex-1 md:flex-none text-zinc-400 hover:text-zinc-200">History</button>
+    <button onclick="switchTab(4)" id="tab-4" class="px-6 py-4 font-medium flex-1 md:flex-none text-zinc-400 hover:text-zinc-200">📅 Future Plans</button>
+    <button onclick="switchTab(5)" id="tab-5" class="px-6 py-4 font-medium flex-1 md:flex-none text-zinc-400 hover:text-zinc-200">🏆 Points & Badges</button>
+    <button onclick="switchTab(6)" id="tab-6" class="px-6 py-4 font-medium flex-1 md:flex-none text-zinc-400 hover:text-zinc-200">🎯 6-Month Goals</button>
+    <button onclick="switchTab(7)" id="tab-7" class="px-6 py-4 font-medium flex-1 md:flex-none text-zinc-400 hover:text-zinc-200">🔁 Recurring</button>
+  </div>
+
+  <!-- ════════════════ TODAY TAB ════════════════ -->
+  <div id="tab-content-0" class="tab-content">
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+      <!-- Left column -->
+      <div class="lg:col-span-7 space-y-6">
+
+        <!-- ── COMBINED LOG / PLAN FORM ── -->
+        <div class="card bg-zinc-900 rounded-3xl p-6">
+
+          <!-- Mode toggle -->
+          <div class="flex items-center gap-2 mb-5">
+            <button id="mode-log-btn" onclick="setMode('log')"
+              class="mode-btn active-log flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl font-semibold text-sm border border-transparent">
+              <i class="fas fa-check-circle"></i> Log Activity
+            </button>
+            <button id="mode-plan-btn" onclick="setMode('plan')"
+              class="mode-btn flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl font-semibold text-sm bg-zinc-800 text-zinc-400 border border-zinc-700">
+              <i class="fas fa-calendar-plus"></i> Plan for Today
+            </button>
+          </div>
+
+          <!-- Shared heading -->
+          <h2 class="text-lg font-semibold mb-4 flex items-center gap-2" id="form-heading">
+            <i class="fas fa-check-circle text-violet-400"></i>
+            <span id="form-heading-text">Log what you did</span>
+          </h2>
+
+          <!-- Activity input -->
+          <div class="bg-zinc-800 rounded-2xl p-5">
+            <input id="activity-input"
+              class="w-full bg-transparent focus:outline-none text-lg placeholder-zinc-500"
+              placeholder="What did you do today?"
+              onkeydown="if(event.key==='Enter')submitForm()">
+            <p id="activity-error" class="error-msg">Activity name is required.</p>
+
+            <!-- Date row (log mode only) -->
+            <div id="date-row" class="flex items-center gap-3 mt-4 mb-1">
+              <label class="text-xs text-zinc-500 shrink-0">Logging for:</label>
+              <input id="entry-date" type="date"
+                class="flex-1 bg-zinc-900 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
+                onchange="onEntryDateChange()">
+              <span id="entry-date-label" class="text-xs font-medium text-violet-400 shrink-0"></span>
+              <button id="jump-today-btn" onclick="jumpToToday()"
+                class="hidden shrink-0 text-xs px-3 py-1.5 rounded-lg bg-violet-900 hover:bg-violet-800 text-violet-300 transition-colors flex items-center gap-1">
+                <i class="fas fa-arrow-left" style="font-size:9px"></i> Jump to Today
+              </button>
+            </div>
+
+            <div class="flex gap-3 mt-3">
+              <div class="flex-1">
+                <label class="text-xs text-zinc-500 block mb-1" id="hours-label">Hours</label>
+                <input id="hours-input" type="number" step="0.25" min="0.25" max="24" value="1" placeholder="e.g. 1.5"
+                  class="w-full bg-zinc-900 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-violet-500 text-zinc-100 placeholder-zinc-600">
+              </div>
+              <div class="flex-1">
+                <label class="text-xs text-zinc-500 block mb-1">Category</label>
+                <select id="category-input" class="w-full bg-zinc-900 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-violet-500" onchange="updateFutureImpactHint()">
+                  <option value="Career">Career</option>
+                  <option value="Learning">Learning</option>
+                  <option value="Fitness">Fitness</option>
+                  <option value="Working">Working</option>
+                  <option value="Personal/Family">Personal/Family</option>
+                  <option value="Volunteering">Volunteering</option>
+                  <option value="Me Time">Me Time</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="mt-3">
+              <div class="flex items-center justify-between mb-1">
+                <label class="text-xs text-zinc-500">Future Impact</label>
+                <button type="button" onclick="askClaude('future-input','activity-input','hours-input','claude-btn-today')"
+                  id="claude-btn-today"
+                  class="flex items-center gap-1 text-xs text-violet-400 hover:text-violet-300 transition-colors disabled:opacity-40">
+                  <i class="fas fa-wand-magic-sparkles" style="font-size:10px"></i> Ask Claude
+                </button>
+              </div>
+              <input id="future-input"
+                class="w-full bg-zinc-900 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-violet-500"
+                placeholder="How does this move you forward?" id="future-impact-hint"
+                onkeydown="if(event.key==='Enter')submitForm()">
+            </div>
+
+            <button id="submit-form-btn" onclick="submitForm()"
+              class="mt-4 w-full py-4 rounded-2xl font-semibold flex items-center justify-center gap-2 transition-colors bg-violet-600 hover:bg-violet-500">
+              <i class="fas fa-check-circle"></i> <span id="submit-form-label">Log Activity</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- ── COMPLETED TODAY ── -->
+        <div class="card bg-zinc-900 rounded-3xl p-6">
+          <h2 class="text-xl font-semibold mb-4 flex items-center gap-2" id="today-heading">
+            <i class="fas fa-sun text-amber-400"></i> What I Did Today
+          </h2>
+          <div class="space-y-3" id="today-logs"></div>
+        </div>
+
+        <!-- ── PLANNED FOR TODAY ── -->
+        <div class="card bg-zinc-900 rounded-3xl p-6">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="text-xl font-semibold flex items-center gap-2">
+              <i class="fas fa-list-check text-sky-400"></i> Planned for Today
+            </h2>
+            <span class="text-xs text-zinc-500" id="planned-count"></span>
+          </div>
+          <div class="space-y-3" id="planned-today"></div>
+        </div>
+
+      </div>
+
+      <!-- Right column -->
+      <div class="lg:col-span-5 space-y-6">
+
+        <!-- This Week -->
+        <div class="card bg-zinc-900 rounded-3xl p-6">
+          <div class="flex items-center justify-between mb-1">
+            <h3 class="font-semibold">This Week</h3>
+            <div class="flex items-center gap-2">
+              <label class="text-xs text-zinc-500">Goal:</label>
+              <input id="week-goal-input" type="number" min="1" max="168" step="1" value="40"
+                class="w-16 bg-zinc-800 rounded-lg px-2 py-1 text-xs text-center focus:outline-none focus:ring-2 focus:ring-violet-500"
+                onchange="saveWeekGoal()">
+              <span class="text-xs text-zinc-500">hrs</span>
+            </div>
+          </div>
+          <div class="flex justify-between items-end mt-3">
+            <div>
+              <span id="total-hours" class="text-5xl font-bold text-emerald-400">0</span>
+              <span class="text-zinc-400" id="week-goal-label">/40 hrs</span>
+            </div>
+            <div id="week-progress-text" class="text-emerald-400 font-medium"></div>
+          </div>
+          <div class="h-3 bg-zinc-800 rounded-full mt-3 overflow-hidden">
+            <div id="week-progress" class="progress-bar h-full bg-gradient-to-r from-emerald-400 to-teal-400 w-0"></div>
+          </div>
+          <!-- Points: Actual vs Planned -->
+          <div class="grid grid-cols-2 gap-3 mt-4">
+            <div class="bg-zinc-800 rounded-2xl p-3 text-center">
+              <div class="text-xs text-zinc-500 mb-1">Points Earned</div>
+              <div class="text-2xl font-bold text-violet-400" id="pts-actual">0</div>
+              <div class="text-xs text-zinc-600 mt-0.5">this week</div>
+            </div>
+            <div class="bg-zinc-800 rounded-2xl p-3 text-center">
+              <div class="text-xs text-zinc-500 mb-1">Points Planned</div>
+              <div class="text-2xl font-bold text-indigo-400" id="pts-planned">0</div>
+              <div class="text-xs text-zinc-600 mt-0.5">if all done</div>
+            </div>
+          </div>
+          <div class="mt-2 flex items-center justify-between text-xs text-zinc-500">
+            <span>Allowance tier:</span>
+            <span id="pts-tier-label" class="font-medium"></span>
+          </div>
+        </div>
+
+        <!-- 6 Month Goals — moved to dedicated tab -->
+        <div class="card bg-zinc-900 rounded-3xl p-4">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <i class="fas fa-crosshairs text-violet-400"></i>
+              <span class="font-semibold text-sm">6 Month Goals</span>
+              <span class="text-xs text-zinc-500" id="goals-quick-count"></span>
+            </div>
+            <button onclick="switchTab(6)" class="text-xs text-violet-400 hover:text-violet-300 flex items-center gap-1">
+              View all <i class="fas fa-arrow-right text-xs"></i>
+            </button>
+          </div>
+          <div id="goals-quick-preview" class="mt-3 space-y-1.5"></div>
+        </div>
+
+        <!-- Live Points Widget -->
+        <div class="card bg-zinc-900 rounded-3xl p-6">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="font-semibold">This Week's Points</h3>
+            <button onclick="openSubmitModal()" class="text-xs text-emerald-400 hover:text-emerald-300 flex items-center gap-1">
+              <i class="fas fa-paper-plane" style="font-size:10px"></i> Submit
+            </button>
+          </div>
+          <div id="live-points-display"></div>
+        </div>
+
+        <!-- Badges -->
+        <div class="card bg-zinc-900 rounded-3xl p-6">
+          <h3 class="font-semibold mb-4">Badges <span class="text-zinc-500 font-normal text-sm" id="badge-count"></span></h3>
+          <div id="badges-display" class="grid grid-cols-2 gap-3"></div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════ TOMORROW TAB ════════════════ -->
+  <div id="tab-content-1" class="tab-content hidden">
+    <div class="card bg-zinc-900 rounded-3xl p-6 max-w-3xl mx-auto">
+      <h2 class="text-2xl font-semibold mb-2 flex items-center gap-3">
+        <i class="fas fa-moon text-indigo-400"></i> Tomorrow's Plan
+      </h2>
+      <p class="text-zinc-400 mb-6">Schedule your day with intention</p>
+      <div class="space-y-3 mb-6" id="tomorrow-plans-list"></div>
+      <div class="p-5 bg-zinc-800 rounded-3xl">
+        <input id="plan-activity" class="w-full bg-transparent text-lg placeholder-zinc-500 focus:outline-none"
+          placeholder="e.g. Deep work on AI project"
+          onkeydown="if(event.key==='Enter')addTomorrowPlan()">
+        <p id="plan-activity-error" class="error-msg">Activity name is required.</p>
+        <div class="flex gap-3 mt-4">
+          <div class="flex-1">
+            <label class="text-xs text-zinc-500 block mb-1">Planned Hours</label>
+            <input id="plan-hours" type="number" step="0.25" min="0.25" max="24" value="1" placeholder="e.g. 2"
+              class="w-full bg-zinc-900 rounded-2xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-zinc-100 placeholder-zinc-600">
+          </div>
+          <div class="flex-1">
+            <label class="text-xs text-zinc-500 block mb-1">Category</label>
+            <select id="plan-category" class="w-full bg-zinc-900 rounded-2xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+              <option>Career</option>
+              <option>Learning</option>
+              <option>Fitness</option>
+              <option>Working</option>
+              <option>Personal/Family</option>
+              <option>Volunteering</option>
+              <option>Me Time</option>
+            </select>
+          </div>
+        </div>
+        <div class="mt-3">
+          <div class="flex items-center justify-between mb-1">
+            <label class="text-xs text-zinc-500">Future Impact</label>
+            <button type="button" onclick="askClaude('plan-future','plan-activity','plan-hours','claude-btn-plan')"
+              id="claude-btn-plan"
+              class="flex items-center gap-1 text-xs text-indigo-400 hover:text-indigo-300 transition-colors disabled:opacity-40">
+              <i class="fas fa-wand-magic-sparkles" style="font-size:10px"></i> Ask Claude
+            </button>
+          </div>
+          <input id="plan-future" class="w-full bg-zinc-900 rounded-2xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            placeholder="Advances career portfolio"
+            onkeydown="if(event.key==='Enter')addTomorrowPlan()">
+        </div>
+        <button onclick="addTomorrowPlan()" class="mt-4 w-full bg-indigo-600 hover:bg-indigo-500 py-4 rounded-2xl font-semibold flex items-center justify-center gap-2 transition-colors">
+          <i class="fas fa-plus"></i> Add to Tomorrow
+        </button>
+      </div>
+      <div class="mt-8 flex items-center bg-zinc-800 rounded-3xl p-5">
+        <div>
+          <span class="text-zinc-400 text-sm">Total Planned</span>
+          <span id="tomorrow-total" class="block text-4xl font-bold text-indigo-400">0h</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════ ANALYTICS TAB ════════════════ -->
+  <div id="tab-content-2" class="tab-content hidden">
+    <div class="space-y-6">
+      <!-- Row 1: stacked daily + donut -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div class="card bg-zinc-900 rounded-3xl p-6 lg:col-span-2">
+          <h3 class="font-semibold mb-4">Daily Hours This Week — by Category</h3>
+          <div style="height:240px"><canvas id="dailyChart"></canvas></div>
+        </div>
+        <div class="card bg-zinc-900 rounded-3xl p-6">
+          <h3 class="font-semibold mb-4">Hours by Category</h3>
+          <div style="height:240px"><canvas id="categoryChart"></canvas></div>
+        </div>
+      </div>
+      <!-- Row 2: sortable category breakdown full-width -->
+      <div class="card bg-zinc-900 rounded-3xl p-6">
+        <div class="flex items-center justify-between mb-4 flex-wrap gap-3">
+          <h3 class="font-semibold">Category Breakdown</h3>
+          <div class="flex items-center gap-2">
+            <span class="text-xs text-zinc-500">Sort by:</span>
+            <button onclick="setCatSort('hours')" id="sort-hours" class="cat-sort-btn active-sort text-xs px-3 py-1.5 rounded-xl border border-violet-700 bg-violet-900 text-violet-300">Hours</button>
+            <button onclick="setCatSort('pts')" id="sort-pts" class="cat-sort-btn text-xs px-3 py-1.5 rounded-xl border border-zinc-700 bg-zinc-800 text-zinc-400">Points</button>
+            <button onclick="setCatSort('name')" id="sort-name" class="cat-sort-btn text-xs px-3 py-1.5 rounded-xl border border-zinc-700 bg-zinc-800 text-zinc-400">Name</button>
+          </div>
+        </div>
+        <div id="cat-breakdown-table"></div>
+      </div>
+      <!-- Row 3: top activities + future themes -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div class="card bg-zinc-900 rounded-3xl p-6">
+          <h3 class="font-semibold mb-4">Top Activities This Week</h3>
+          <div id="top-activities" class="space-y-3"></div>
+        </div>
+        <div class="card bg-zinc-900 rounded-3xl p-6">
+          <h3 class="font-semibold mb-4">Future Value Themes</h3>
+          <div class="grid grid-cols-2 gap-3" id="future-themes"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════ HISTORY TAB ════════════════ -->
+  <div id="tab-content-3" class="tab-content hidden">
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="text-xl font-semibold">All Activity History</h2>
+      <input id="history-search" type="text" placeholder="Search…"
+        class="bg-zinc-900 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 w-52"
+        oninput="renderHistory()">
+    </div>
+    <div id="history" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+  </div>
+
+<!-- TAB 4: IMPROVED FUTURE PLANS CALENDAR -->
+<div id="tab-content-4" class="tab-content hidden">
+  <div class="card bg-zinc-900 rounded-3xl p-6">
+    <div class="flex items-center justify-between mb-6">
+      <h2 class="text-2xl font-semibold flex items-center gap-3">
+        <i class="fas fa-calendar-days text-emerald-400"></i> 
+        Future Plans Calendar
+      </h2>
+      <div class="flex items-center gap-4">
+        <button onclick="calendarPrevMonth()" 
+                class="px-6 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-2xl text-sm font-medium">← Previous</button>
+        <span id="calendar-month-year" class="text-lg font-semibold px-6"></span>
+        <button onclick="calendarNextMonth()" 
+                class="px-6 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-2xl text-sm font-medium">Next →</button>
+        <button onclick="calendarGoToday()" 
+                class="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-2xl text-sm font-medium">Today</button>
+      </div>
+    </div>
+
+    <!-- Weekday headers -->
+    <div class="grid grid-cols-7 text-center text-xs font-medium text-zinc-400 mb-2">
+      <div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div>
+    </div>
+
+    <!-- Calendar grid -->
+    <div id="calendar-grid" class="grid grid-cols-7 gap-2"></div>
+  </div>
+</div>
+
+  <!-- ════════════════ POINTS & BADGES TAB ════════════════ -->
+  <div id="tab-content-5" class="tab-content hidden">
+
+    <!-- Header row -->
+    <div class="flex items-center justify-between mb-6">
+      <div>
+        <h2 class="text-2xl font-bold">Points &amp; Badges</h2>
+        <p class="text-zinc-400 text-sm mt-1">Earn points every week to unlock your allowance</p>
+      </div>
+      <button onclick="openSubmitModal()"
+        class="px-5 py-2.5 bg-emerald-700 hover:bg-emerald-600 rounded-2xl text-sm font-semibold flex items-center gap-2 transition-colors">
+        <i class="fas fa-paper-plane"></i> Submit This Week
+      </button>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+      <!-- ── Left column ── -->
+      <div class="space-y-6">
+
+        <!-- Live weekly score -->
+        <div class="card bg-zinc-900 rounded-3xl p-6">
+          <h3 class="font-semibold mb-4 flex items-center gap-2">
+            <i class="fas fa-star text-yellow-400"></i> This Week's Score
+          </h3>
+          <div id="pb-live-points"></div>
+        </div>
+
+        <!-- Weekly history -->
+        <div class="card bg-zinc-900 rounded-3xl p-6">
+          <h3 class="font-semibold mb-4 flex items-center gap-2">
+            <i class="fas fa-chart-line text-violet-400"></i> Weekly History
+          </h3>
+          <div id="pb-history" class="space-y-3"></div>
+        </div>
+
+      </div>
+
+      <!-- ── Right column ── -->
+      <div class="space-y-6">
+
+        <!-- Allowance tiers -->
+        <div class="card bg-zinc-900 rounded-3xl p-6">
+          <h3 class="font-semibold mb-4 flex items-center gap-2">
+            <i class="fas fa-dollar-sign text-emerald-400"></i> Allowance Tiers
+          </h3>
+          <div class="space-y-2" id="pb-tiers"></div>
+          <p class="text-xs text-zinc-600 mt-4">Base: $70/week ($300/month). Tiers add bonus %.</p>
+        </div>
+
+        <!-- Points guide -->
+        <div class="card bg-zinc-900 rounded-3xl p-6">
+          <h3 class="font-semibold mb-4 flex items-center gap-2">
+            <i class="fas fa-list text-blue-400"></i> How to Earn Points
+          </h3>
+          <div class="space-y-1" id="pb-guide"></div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Badges — full width -->
+    <div class="card bg-zinc-900 rounded-3xl p-6 mt-6">
+      <div class="flex items-center justify-between mb-5">
+        <h3 class="font-semibold flex items-center gap-2">
+          <i class="fas fa-medal text-yellow-400"></i> All Badges
+          <span class="text-zinc-500 font-normal text-sm" id="pb-badge-count"></span>
+        </h3>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4" id="pb-badges"></div>
+    </div>
+
+  </div>
+
+  <!-- ════════════════ 6-MONTH GOALS TAB ════════════════ -->
+  <div id="tab-content-6" class="tab-content hidden">
+    <div class="max-w-3xl mx-auto space-y-6">
+      <div class="flex items-center justify-between">
+        <div>
+          <h2 class="text-2xl font-bold flex items-center gap-3"><i class="fas fa-crosshairs text-violet-400"></i> 6-Month Goals</h2>
+          <p class="text-zinc-400 text-sm mt-1">Where you'll be in 6 months if you stay consistent</p>
+        </div>
+        <div class="text-sm text-zinc-500" id="goals-tab-count"></div>
+      </div>
+
+      <!-- Goal cards -->
+      <div class="space-y-3" id="goals-list"></div>
+
+      <!-- Add new goal -->
+      <div class="card bg-zinc-900 rounded-3xl p-5">
+        <div class="text-xs text-zinc-500 mb-3 font-medium tracking-widest">ADD A GOAL</div>
+        <textarea id="new-goal" placeholder="e.g. Land a paid internship in software development by August…"
+          rows="2"
+          class="w-full bg-zinc-800 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 resize-none placeholder-zinc-600 mb-3"></textarea>
+        <button onclick="addGoal()" class="w-full bg-violet-600 hover:bg-violet-500 py-3 rounded-2xl text-sm font-semibold transition-colors flex items-center justify-center gap-2">
+          <i class="fas fa-plus"></i> Add Goal
+        </button>
+      </div>
+
+      <!-- Motivational footer -->
+      <div class="bg-zinc-900 rounded-3xl p-5 border border-zinc-800 text-center">
+        <p class="text-zinc-400 text-sm leading-relaxed">
+          <i class="fas fa-lightbulb text-yellow-400 mr-2"></i>
+          You finished community college. The next 6 months are the bridge.<br>
+          <span class="text-zinc-300 font-medium">Consistency beats intensity. Log every day.</span>
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════ RECURRING TASKS TAB ════════════════ -->
+  <div id="tab-content-7" class="tab-content hidden">
+    <div class="max-w-3xl mx-auto space-y-6">
+      <div class="flex items-center justify-between">
+        <div>
+          <h2 class="text-2xl font-bold flex items-center gap-3"><i class="fas fa-rotate text-emerald-400"></i> Recurring Tasks</h2>
+          <p class="text-zinc-400 text-sm mt-1">Tasks that auto-appear in Today's Plan on the days you choose</p>
+        </div>
+        <button onclick="applyRecurringToToday()" class="px-5 py-2.5 bg-emerald-700 hover:bg-emerald-600 rounded-2xl text-sm font-semibold flex items-center gap-2 transition-colors">
+          <i class="fas fa-calendar-day"></i> Apply to Today
+        </button>
+      </div>
+
+      <!-- Existing recurring tasks -->
+      <div id="recurring-list" class="space-y-3"></div>
+
+      <!-- Add recurring task form -->
+      <div class="card bg-zinc-900 rounded-3xl p-6">
+        <div class="text-xs text-zinc-500 mb-4 font-medium tracking-widest">NEW RECURRING TASK</div>
+        <div class="space-y-4">
+          <div>
+            <label class="text-xs text-zinc-500 block mb-1">Task name</label>
+            <input id="rec-title" type="text" placeholder="e.g. Morning workout, Read 20 mins…"
+              class="w-full bg-zinc-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 placeholder-zinc-600"
+              onkeydown="if(event.key==='Enter')addRecurring()">
+          </div>
+          <div class="flex gap-3">
+            <div class="flex-1">
+              <label class="text-xs text-zinc-500 block mb-1">Hours</label>
+              <input id="rec-hours" type="number" step="0.25" min="0.25" max="8" value="1"
+                class="w-full bg-zinc-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
+            </div>
+            <div class="flex-1">
+              <label class="text-xs text-zinc-500 block mb-1">Category</label>
+              <select id="rec-category" class="w-full bg-zinc-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                <option value="Career">Career</option>
+                <option value="Learning">Learning</option>
+                <option value="Fitness">Fitness</option>
+                <option value="Working">Working</option>
+                <option value="Personal/Family">Personal/Family</option>
+                <option value="Volunteering">Volunteering</option>
+                <option value="Me Time">Me Time</option>
+              </select>
+            </div>
+          </div>
+          <div>
+            <label class="text-xs text-zinc-500 block mb-2">Repeat on</label>
+            <div class="flex gap-2 flex-wrap" id="rec-days">
+              <button type="button" onclick="toggleRecDay(this,'Mon')" data-day="Mon" class="rec-day-btn px-3 py-1.5 rounded-xl text-xs border border-zinc-700 bg-zinc-800 text-zinc-400 transition-colors">Mon</button>
+              <button type="button" onclick="toggleRecDay(this,'Tue')" data-day="Tue" class="rec-day-btn px-3 py-1.5 rounded-xl text-xs border border-zinc-700 bg-zinc-800 text-zinc-400 transition-colors">Tue</button>
+              <button type="button" onclick="toggleRecDay(this,'Wed')" data-day="Wed" class="rec-day-btn px-3 py-1.5 rounded-xl text-xs border border-zinc-700 bg-zinc-800 text-zinc-400 transition-colors">Wed</button>
+              <button type="button" onclick="toggleRecDay(this,'Thu')" data-day="Thu" class="rec-day-btn px-3 py-1.5 rounded-xl text-xs border border-zinc-700 bg-zinc-800 text-zinc-400 transition-colors">Thu</button>
+              <button type="button" onclick="toggleRecDay(this,'Fri')" data-day="Fri" class="rec-day-btn px-3 py-1.5 rounded-xl text-xs border border-zinc-700 bg-zinc-800 text-zinc-400 transition-colors">Fri</button>
+              <button type="button" onclick="toggleRecDay(this,'Sat')" data-day="Sat" class="rec-day-btn px-3 py-1.5 rounded-xl text-xs border border-zinc-700 bg-zinc-800 text-zinc-400 transition-colors">Sat</button>
+              <button type="button" onclick="toggleRecDay(this,'Sun')" data-day="Sun" class="rec-day-btn px-3 py-1.5 rounded-xl text-xs border border-zinc-700 bg-zinc-800 text-zinc-400 transition-colors">Sun</button>
+              <button type="button" onclick="setAllDays()" class="px-3 py-1.5 rounded-xl text-xs border border-zinc-700 bg-zinc-800 text-zinc-400 hover:text-white transition-colors">Every day</button>
+              <button type="button" onclick="setWeekdays()" class="px-3 py-1.5 rounded-xl text-xs border border-zinc-700 bg-zinc-800 text-zinc-400 hover:text-white transition-colors">Weekdays</button>
+              <button type="button" onclick="clearDays()" class="px-3 py-1.5 rounded-xl text-xs border border-zinc-700 bg-zinc-800 text-zinc-400 hover:text-white transition-colors">Clear</button>
+            </div>
+          </div>
+          <div>
+            <label class="text-xs text-zinc-500 block mb-1">Future Impact <span class="text-zinc-600">(optional)</span></label>
+            <input id="rec-impact" type="text" placeholder="Why this task matters…"
+              class="w-full bg-zinc-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 placeholder-zinc-600">
+          </div>
+          <button onclick="addRecurring()" class="w-full bg-emerald-600 hover:bg-emerald-500 py-4 rounded-2xl font-semibold text-sm flex items-center justify-center gap-2 transition-colors">
+            <i class="fas fa-plus"></i> Add Recurring Task
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /max-w -->
+
+<script>
+// ─── Constants ────────────────────────────────────────────────
+const STOP_WORDS = new Set(['this','that','will','have','with','from','your','been','they','them','their','also','more','than','what','when','where','which','there','about','into','some','then','does','each','here','just','make','only','over','such','time','very','would','after','before','could','other','these','those','under','while']);
+const DEFAULT_GOALS = [
+  'Apply and get accepted into a 4-year university or trade certification program',
+  'Land a part-time job or paid internship in my target field',
+  'Build a portfolio with 3 completed, real-world projects',
+  'Save $1,500 — three months of personal expenses covered',
+  'Volunteer 8+ hours/month and build two meaningful community connections',
+  'Establish a consistent workout routine — active 4 days/week',
+];
+const CAT_COLORS = { Career:'#a78bfa', Learning:'#60a5fa', Fitness:'#4ade80', Working:'#fbbf24', 'Personal/Family':'#f472b6', 'Me Time':'#71717a', Volunteering:'#fb923c' };
+
+// ─── Points System ────────────────────────────────────────────
+const PTS = {
+  LOG_UNPLANNED:    5,
+  PLAN_TODAY:       3,
+  PLAN_TOMORROW:    5,
+  PLAN_FUTURE:      7,
+  COMPLETE_PLANNED: 10,
+  EARLY_BIRD:       15,
+  PERFECT_DAY:      25,
+  WEEKLY_TARGET:    100,
+  STREAK_7:         50,
+};
+const CAT_PTS_PER_HR = { Career:8, Learning:7, Fitness:6, Working:6, 'Personal/Family':5, Volunteering:5, 'Me Time':0 };
+const ALLOWANCE_TIERS = [
+  { min:850, label:'850+',    pct:100, weekly:140    },
+  { min:700, label:'700–849', pct:75,  weekly:122.50 },
+  { min:550, label:'550–699', pct:50,  weekly:105    },
+  { min:400, label:'400–549', pct:25,  weekly:87.50  },
+  { min:300, label:'300–399', pct:0,   weekly:70     },
+  { min:0,   label:'<300',   pct:null, weekly:0      },
+];
+const BADGE_DEFS = [
+  { id:'best_week',     emoji:'🏆', name:'Best Week Yet',   desc:'New all-time weekly points record' },
+  { id:'perfect_day',   emoji:'⚡', name:'Perfect Day',     desc:'All planned tasks completed in a day' },
+  { id:'on_fire',       emoji:'🔥', name:'On Fire',         desc:'7-day logging streak' },
+  { id:'early_bird',    emoji:'🌅', name:'Early Bird',      desc:'Logged before 8am five days this week' },
+  { id:'planner',       emoji:'📅', name:'Planner',         desc:'Created tomorrow plans 5 days in a row' },
+  { id:'goal_crusher',  emoji:'🎯', name:'Goal Crusher',    desc:'Hit weekly hour target 4 weeks in a row' },
+  { id:'career_builder',emoji:'💼', name:'Career Builder',  desc:'20+ career hours in a week' },
+  { id:'scholar',       emoji:'🧠', name:'Scholar',         desc:'20+ learning hours in a week' },
+  { id:'iron_week',     emoji:'💪', name:'Iron Week',       desc:'5+ fitness sessions in a week' },
+  { id:'apex_lynx',     emoji:'🌟', name:'Apex Lynx',       desc:'850+ points in a week' },
+];
+const REPORT_EMAILS = 'Shark.bait@outlook.com,Alfog@comcast.net';
+
+// ─── State ────────────────────────────────────────────────────
+let data = { logs:[], tasks:[], tomorrowPlans:[], futurePlans:[], goals:[...DEFAULT_GOALS], weekGoal:40, submissions:[], badges:[], weeklyPointsHistory:[], planEvents:[], recurringTasks:[] };
+let dailyChart=null, categoryChart=null, activeTab=0;
+let pendingCompleteId=null;
+let histModalItem=null;
+let formMode='log'; // 'log' | 'plan'
+
+// ─── Utils ────────────────────────────────────────────────────
+function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
+function localDateStr(d=new Date()){
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+function showToast(msg,dur=2500){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),dur);
+}
+function showError(id,vis){ document.getElementById(id)?.classList.toggle('visible',vis); }
+function catColor(c){ return CAT_COLORS[c]||'#a1a1aa'; }
+
+// ─── Persistence ──────────────────────────────────────────────
+function loadData(){
+  try{
+    const s=localStorage.getItem('lynx_v6')||localStorage.getItem('lynx_v5')||localStorage.getItem('lynx_v4');
+    if(s){
+      const p=JSON.parse(s);
+      if(p.logs) p.logs.forEach(l=>{if(!l.id)l.id=uid();});
+      if(p.tasks) p.tasks.forEach(t=>{if(!t.id)t.id=uid();});
+      if(p.tomorrowPlans) p.tomorrowPlans.forEach(t=>{if(!t.id)t.id=uid();});
+      data={...data,...p};
+      if(!data.badges)data.badges=[];
+      if(!data.weeklyPointsHistory)data.weeklyPointsHistory=[];
+      if(!data.planEvents)data.planEvents=[];
+      if(!data.recurringTasks)data.recurringTasks=[];
+    }
+  }catch(e){ showToast('⚠️ Could not load saved data.'); }
+  document.getElementById('week-goal-input').value=data.weekGoal||40;
+  renderAll();
+}
+function saveData(){
+  try{ localStorage.setItem('lynx_v6',JSON.stringify(data)); }catch(e){ showToast('⚠️ Storage full.'); }
+  renderAll();
+}
+
+// ─── Tabs ─────────────────────────────────────────────────────
+function switchTab(n){
+  document.querySelectorAll('.tab-content').forEach(el=>el.classList.add('hidden'));
+  document.getElementById(`tab-content-${n}`).classList.remove('hidden');
+  document.querySelectorAll('#tab-0,#tab-1,#tab-2,#tab-3,#tab-4,#tab-5,#tab-6,#tab-7').forEach(el=>el.classList.remove('tab-active','text-white'));
+  document.getElementById(`tab-${n}`).classList.add('tab-active','text-white');
+  activeTab=n;
+  if(n===2)renderAnalytics();
+  if(n===3)renderHistory();
+  if(n===4)renderImprovedCalendar();
+  if(n===5)renderPointsBadgesTab();
+  if(n===6)renderGoals();
+  if(n===7)renderRecurringList();
+}
+
+// ─── Form mode (Log vs Plan) ──────────────────────────────────
+function setMode(mode){
+  formMode=mode;
+  const isLog=mode==='log';
+
+  // Toggle buttons
+  const logBtn=document.getElementById('mode-log-btn');
+  const planBtn=document.getElementById('mode-plan-btn');
+  logBtn.className=`mode-btn ${isLog?'active-log':'bg-zinc-800 text-zinc-400 border border-zinc-700'} flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl font-semibold text-sm`;
+  planBtn.className=`mode-btn ${!isLog?'active-plan':'bg-zinc-800 text-zinc-400 border border-zinc-700'} flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl font-semibold text-sm`;
+
+  // Heading
+  document.getElementById('form-heading').innerHTML=isLog
+    ?'<i class="fas fa-check-circle text-violet-400"></i><span>Log what you did</span>'
+    :'<i class="fas fa-calendar-plus text-blue-400"></i><span>Plan for today</span>';
+
+  // Show/hide date row (only relevant when logging past dates)
+  document.getElementById('date-row').style.display=isLog?'flex':'none';
+
+  // Placeholder
+  document.getElementById('activity-input').placeholder=isLog
+    ?'What did you do today?'
+    :'What do you plan to do today?';
+
+  // Hours label
+  document.getElementById('hours-label').textContent=isLog?'Hours spent':'Hours planned';
+
+  // Submit button
+  const btn=document.getElementById('submit-form-btn');
+  const lbl=document.getElementById('submit-form-label');
+  btn.className=`mt-4 w-full py-4 rounded-2xl font-semibold flex items-center justify-center gap-2 transition-colors ${isLog?'bg-violet-600 hover:bg-violet-500':'bg-blue-700 hover:bg-blue-600'}`;
+  btn.querySelector('i').className=isLog?'fas fa-check-circle':'fas fa-calendar-plus';
+  lbl.textContent=isLog?'Log Activity':'Add to Today\'s Plan';
+}
+
+function submitForm(){
+  if(formMode==='log') addTodayEntry();
+  else addPlanForToday();
+}
+
+// ─── Date helpers ─────────────────────────────────────────────
+function renderDate(){ document.getElementById('current-date').textContent=new Date().toLocaleDateString('en-US',{weekday:'long',month:'short',day:'numeric'}); }
+function initEntryDate(){
+  const el=document.getElementById('entry-date');
+  if(el&&!el.value){ el.value=localDateStr(); el.max=localDateStr(); updateEntryDateLabel(); }
+}
+function onEntryDateChange(){ updateEntryDateLabel(); renderTodayLogs(); updateTodayHeading(); }
+function getEntryDate(){ return document.getElementById('entry-date')?.value||localDateStr(); }
+function updateEntryDateLabel(){
+  const el=document.getElementById('entry-date'),lbl=document.getElementById('entry-date-label');
+  const jumpBtn=document.getElementById('jump-today-btn');
+  if(!el||!lbl)return;
+  const today=localDateStr();
+  const yest=(()=>{const d=new Date();d.setDate(d.getDate()-1);return localDateStr(d);})();
+  if(el.value===today){
+    lbl.textContent='Today';lbl.className='text-xs font-medium text-violet-400 shrink-0';
+    if(jumpBtn)jumpBtn.classList.add('hidden');
+  } else if(el.value===yest){
+    lbl.textContent='Yesterday';lbl.className='text-xs font-medium text-amber-400 shrink-0';
+    if(jumpBtn)jumpBtn.classList.remove('hidden');
+  } else if(el.value<today){
+    lbl.textContent='Past entry';lbl.className='text-xs font-medium text-zinc-400 shrink-0';
+    if(jumpBtn)jumpBtn.classList.remove('hidden');
+  } else {
+    el.value=today;lbl.textContent='Today';
+    if(jumpBtn)jumpBtn.classList.add('hidden');
+  }
+}
+function jumpToToday(){
+  const el=document.getElementById('entry-date');
+  if(el){el.value=localDateStr();onEntryDateChange();}
+}
+function updateTodayHeading(){
+  const hd=document.getElementById('today-heading');if(!hd)return;
+  const today=localDateStr(),sel=getEntryDate();
+  const yest=(()=>{const d=new Date();d.setDate(d.getDate()-1);return localDateStr(d);})();
+  let label='What I Did Today',icon='fas fa-sun text-amber-400';
+  if(sel===yest){label="Yesterday's Log";icon='fas fa-moon text-indigo-400';}
+  else if(sel<today){const d=new Date(sel+'T12:00:00');label=d.toLocaleDateString('en-US',{weekday:'long',month:'short',day:'numeric'});icon='fas fa-calendar text-zinc-400';}
+  hd.innerHTML=`<i class="${icon}"></i> ${label}`;
+}
+function saveWeekGoal(){
+  const v=parseFloat(document.getElementById('week-goal-input').value);
+  if(v>0&&v<=168){data.weekGoal=v;saveData();}
+}
+
+// ─── Log Activity ─────────────────────────────────────────────
+function addTodayEntry(){
+  const activity=document.getElementById('activity-input').value.trim();
+  const hours=parseFloat(document.getElementById('hours-input').value);
+  const category=document.getElementById('category-input').value;
+  const futureBenefit=document.getElementById('future-input').value.trim();
+  const entryDate=getEntryDate();
+  const ok=activity.length>0;
+  showError('activity-error',!ok);
+  if(!ok)return;
+  data.logs.unshift({id:uid(),date:entryDate,activity,hours,category,futureBenefit:futureBenefit||CAT_IMPACT_HINTS[category]||'How does this move you forward?',loggedAt:new Date().toISOString()});
+  recordPlanEvent('unplanned');
+  if(new Date().getHours()<8) recordPlanEvent('early_bird');
+  clearForm();
+  const isToday=entryDate===localDateStr();
+  const yest=(()=>{const d=new Date();d.setDate(d.getDate()-1);return localDateStr(d);})();
+  showToast(isToday?'✅ Activity logged!':entryDate===yest?'✅ Yesterday logged!':`✅ Logged for ${entryDate}`);
+  saveData();
+}
+
+// ─── Plan for Today ───────────────────────────────────────────
+function addPlanForToday(){
+  const activity=document.getElementById('activity-input').value.trim();
+  const hours=parseFloat(document.getElementById('hours-input').value);
+  const category=document.getElementById('category-input').value;
+  const futureBenefit=document.getElementById('future-input').value.trim();
+  const ok=activity.length>0;
+  showError('activity-error',!ok);
+  if(!ok)return;
+  data.tasks.push({id:uid(),task:activity,hours,category,impact:futureBenefit||CAT_IMPACT_HINTS[category]||'How does this move you forward?',completed:false});
+  recordPlanEvent('today');
+  clearForm();
+  showToast(`📋 Added to today's plan: "${activity.slice(0,28)}"`);
+  saveData();
+}
+
+function clearForm(){
+  document.getElementById('activity-input').value='';
+  document.getElementById('future-input').value='';
+  document.getElementById('hours-input').value='1';
+  showError('activity-error',false);
+}
+
+// ─── Render Today Logs ────────────────────────────────────────
+function deleteLog(id){
+  if(!confirm('Delete this entry?'))return;
+  data.logs=data.logs.filter(l=>l.id!==id);
+  saveData(); showToast('🗑️ Entry deleted.');
+}
+function renderTodayLogs(){
+  const container=document.getElementById('today-logs');
+  const selDate=getEntryDate(),today=localDateStr();
+  const dateLogs=data.logs.filter(l=>l.date===selDate);
+  if(!dateLogs.length){
+    container.innerHTML=`<p class="text-zinc-500 py-10 text-center text-sm">${selDate===today?'No activities logged yet today. Switch to "Log Activity" above.':'No activities for this date.'}</p>`;
+    return;
+  }
+  container.innerHTML=dateLogs.map(log=>`
+    <div class="flex items-center gap-4 bg-zinc-800 rounded-2xl p-4">
+      <div class="font-mono text-2xl font-bold text-emerald-400 w-14 shrink-0">${log.hours}h</div>
+      <div class="flex-1 min-w-0">
+        <p class="font-medium truncate">${esc(log.activity)}</p>
+        <div class="flex items-center gap-2 mt-1 flex-wrap">
+          <span class="text-xs px-2 py-0.5 rounded-full" style="background:${catColor(log.category)}22;color:${catColor(log.category)}">${esc(log.category||'')}</span>
+          <span class="text-xs text-emerald-300 truncate">${esc(log.futureBenefit)}</span>
+        </div>
+      </div>
+      <button onclick="openEditModal('log','${log.id}')" class="text-zinc-500 hover:text-violet-400 p-2 shrink-0 transition-colors" title="Edit"><i class="fas fa-pen text-xs"></i></button>
+      <button onclick="deleteLog('${log.id}')" class="text-zinc-600 hover:text-red-400 p-2 shrink-0 transition-colors" title="Delete"><i class="fas fa-trash"></i></button>
+    </div>`).join('');
+}
+
+// ─── Planned for Today ────────────────────────────────────────
+function openHrsModal(id){
+  const t=data.tasks.find(t=>t.id===id);
+  if(!t||t.completed)return;
+  pendingCompleteId=id;
+  document.getElementById('hrs-modal-task').textContent=`"${t.task}"`;
+  document.getElementById('hrs-modal-input').value=t.hours;
+  document.getElementById('hrs-modal').classList.remove('hidden');
+  setTimeout(()=>document.getElementById('hrs-modal-input').select(),200);
+}
+function closeHrsModal(){ document.getElementById('hrs-modal').classList.add('hidden'); pendingCompleteId=null; }
+function confirmComplete(){
+  if(!pendingCompleteId)return;
+  const t=data.tasks.find(t=>t.id===pendingCompleteId);
+  if(!t){closeHrsModal();return;}
+  const actual=parseFloat(document.getElementById('hrs-modal-input').value)||t.hours;
+  data.logs.unshift({id:uid(),date:localDateStr(),activity:t.task,hours:actual,category:t.category||'Career',futureBenefit:t.impact||CAT_IMPACT_HINTS[t.category]||'How does this move you forward?',loggedAt:new Date().toISOString(),_fromPlan:true});
+  data.tasks=data.tasks.filter(t=>t.id!==pendingCompleteId);
+  recordPlanEvent('complete');
+  if(new Date().getHours()<8) recordPlanEvent('early_bird');
+  // Check perfect day: all tasks were planned and are now done
+  if(data.tasks.filter(t=>!t.completed).length===0 && data.tasks.length===0){
+    const todayLogs=data.logs.filter(l=>l.date===localDateStr()&&l._fromPlan);
+    if(todayLogs.length>0) recordPlanEvent('perfect_day');
+  }
+  closeHrsModal();
+  showToast(`✅ Logged ${actual}h — "${t.task.slice(0,28)}"`);
+  saveData();
+}
+
+function deleteTask(id){
+  data.tasks=data.tasks.filter(t=>t.id!==id);
+  saveData(); showToast('Removed from plan.');
+}
+
+// Push a planned-today item to tomorrow
+function pushTaskToTmr(id){
+  const t=data.tasks.find(t=>t.id===id);
+  if(!t)return;
+  data.tomorrowPlans.push({id:uid(),activity:t.task,hours:t.hours,category:t.category,futureBenefit:t.impact});
+  data.tasks=data.tasks.filter(t=>t.id!==id);
+  showToast(`→ Pushed to tomorrow: "${t.task.slice(0,28)}"`);
+  saveData();
+}
+
+function renderPlannedToday(){
+  const container=document.getElementById('planned-today');
+  const countEl=document.getElementById('planned-count');
+  if(!data.tasks||!data.tasks.length){
+    container.innerHTML=`<p class="text-zinc-500 py-6 text-center text-sm">Nothing planned yet. Use "Plan for Today" above, or move items from Tomorrow.</p>`;
+    countEl.textContent='';
+    return;
+  }
+  const total=data.tasks.reduce((s,t)=>s+t.hours,0);
+  countEl.textContent=`${data.tasks.length} task${data.tasks.length!==1?'s':''} · ${total.toFixed(1)}h`;
+  container.innerHTML=data.tasks.map(t=>`
+    <div class="flex items-start gap-3 bg-zinc-800 rounded-2xl p-4 ${t.completed?'opacity-60':''}">
+      <div class="w-6 h-6 rounded-full border-2 mt-0.5 ${t.completed?'bg-emerald-500 border-emerald-500':'border-zinc-500'} flex items-center justify-center shrink-0 cursor-pointer"
+        onclick="openHrsModal('${t.id}')">
+        ${t.completed?'<i class="fas fa-check text-xs text-white"></i>':''}
+      </div>
+      <div class="flex-1 min-w-0">
+        <p class="font-medium ${t.completed?'line-through text-zinc-500':''} truncate">${esc(t.task)}</p>
+        <div class="flex items-center gap-2 mt-1 flex-wrap">
+          <span class="text-xs px-2 py-0.5 rounded-full" style="background:${catColor(t.category)}22;color:${catColor(t.category)}">${esc(t.category||'')}</span>
+          <span class="text-xs text-zinc-400">${t.hours}h planned</span>
+          ${t.impact?`<span class="text-xs text-sky-300 truncate max-w-xs">→ ${esc(t.impact)}</span>`:''}
+        </div>
+        <!-- Action row -->
+        <div class="flex items-center gap-2 mt-2">
+          <button onclick="openEditModal('task','${t.id}')"
+            class="plan-action-btn text-violet-300 border-violet-800 hover:bg-violet-950"
+            title="Edit">
+            <i class="fas fa-pen" style="font-size:9px"></i> Edit
+          </button>
+          <button onclick="pushTaskToTmr('${t.id}')"
+            class="plan-action-btn text-indigo-300 border-indigo-800 hover:bg-indigo-900"
+            title="Push to tomorrow">
+            <i class="fas fa-moon" style="font-size:9px"></i> Push to Tomorrow
+          </button>
+          <button onclick="deleteTask('${t.id}')"
+            class="plan-action-btn text-zinc-500 border-zinc-700 hover:text-red-400 hover:border-red-800"
+            title="Remove">
+            <i class="fas fa-times" style="font-size:9px"></i> Remove
+          </button>
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+// ─── Tomorrow Plans ───────────────────────────────────────────
+function addTomorrowPlan(){
+  const activity=document.getElementById('plan-activity').value.trim();
+  const hours=parseFloat(document.getElementById('plan-hours').value)||1;
+  const category=document.getElementById('plan-category').value;
+  const futureBenefit=document.getElementById('plan-future').value.trim();
+  const ok=activity.length>0;
+  showError('plan-activity-error',!ok);
+  if(!ok)return;
+  data.tomorrowPlans.push({id:uid(),activity,hours,category,futureBenefit:futureBenefit||CAT_IMPACT_HINTS[category]||'How does this move you forward?'});
+  document.getElementById('plan-activity').value='';
+  document.getElementById('plan-future').value='';
+  showError('plan-activity-error',false);
+  recordPlanEvent('tomorrow');
+  showToast(`Added to tomorrow: "${activity.slice(0,28)}"`);
+  saveData();
+}
+
+function deleteTomorrowPlan(id){
+  if(!confirm('Remove this plan?'))return;
+  data.tomorrowPlans=data.tomorrowPlans.filter(p=>p.id!==id);
+  saveData();
+}
+
+function moveTomorrowToToday(){
+  if(!data.tomorrowPlans.length)return;
+  if(!confirm(`Move ${data.tomorrowPlans.length} plan(s) to today's planned list?`))return;
+  data.tomorrowPlans.forEach(p=>{
+    data.tasks.push({id:uid(),task:p.activity,hours:p.hours,category:p.category,impact:p.futureBenefit,completed:false});
+  });
+  data.tomorrowPlans=[];
+  showToast('📅 Plans moved to today!');
+  saveData(); switchTab(0);
+}
+
+function moveSingleTmrToToday(id){
+  const p=data.tomorrowPlans.find(p=>p.id===id);
+  if(!p)return;
+  data.tasks.push({id:uid(),task:p.activity,hours:p.hours,category:p.category,impact:p.futureBenefit,completed:false});
+  data.tomorrowPlans=data.tomorrowPlans.filter(p=>p.id!==id);
+  showToast(`📋 Moved to today: "${p.activity.slice(0,28)}"`);
+  saveData();
+}
+
+function renderTomorrowPlans(){
+  const container=document.getElementById('tomorrow-plans-list');
+  if(!container)return;
+  let total=0;
+  if(!data.tomorrowPlans.length){
+    container.innerHTML=`<p class="text-zinc-500 py-8 text-center text-sm">No plans yet. Add below.</p>`;
+    document.getElementById('tomorrow-total').textContent='0h';
+    return;
+  }
+  container.innerHTML=data.tomorrowPlans.map(p=>{
+    total+=p.hours;
+    const col=catColor(p.category);
+    return `<div class="flex items-start gap-4 bg-zinc-800 rounded-2xl p-4">
+      <div class="font-mono text-2xl font-bold text-indigo-400 w-14 shrink-0 pt-0.5">${p.hours}h</div>
+      <div class="flex-1 min-w-0">
+        <p class="font-medium truncate">${esc(p.activity)}</p>
+        <div class="flex items-center gap-2 mt-1 flex-wrap">
+          <span class="text-xs px-2 py-0.5 rounded-full" style="background:${col}22;color:${col}">${esc(p.category||'')}</span>
+          <span class="text-xs text-indigo-300 truncate">${esc(p.futureBenefit)}</span>
+        </div>
+        <div class="flex items-center gap-2 mt-2">
+          <button onclick="moveSingleTmrToToday('${p.id}')"
+            class="plan-action-btn text-emerald-300 border-emerald-800 hover:bg-emerald-950"
+            title="Move to today's plan">
+            <i class="fas fa-arrow-left" style="font-size:9px"></i> Move to Today
+          </button>
+        </div>
+      </div>
+      <div class="flex gap-1 shrink-0">
+        <button onclick="openEditModal('tmr','${p.id}')" class="text-zinc-500 hover:text-violet-400 p-2 transition-colors" title="Edit"><i class="fas fa-pen text-xs"></i></button>
+        <button onclick="deleteTomorrowPlan('${p.id}')" class="text-zinc-600 hover:text-red-400 p-2 transition-colors"><i class="fas fa-trash"></i></button>
+      </div>
+    </div>`;
+  }).join('');
+  document.getElementById('tomorrow-total').textContent=total.toFixed(1)+'h';
+}
+
+// ─── Goals ────────────────────────────────────────────────────
+function addGoal(){
+  const inp=document.getElementById('new-goal');
+  const text=inp.value.trim();if(!text)return;
+  data.goals.push(text);inp.value='';saveData();
+}
+function deleteGoal(idx){ if(!confirm('Remove this goal?'))return; data.goals.splice(idx,1);saveData(); }
+function editGoal(idx){
+  const current=data.goals[idx];
+  const inp=document.getElementById(`goal-edit-${idx}`);
+  const span=document.getElementById(`goal-text-${idx}`);
+  const editBtn=document.getElementById(`goal-editbtn-${idx}`);
+  const saveBtn=document.getElementById(`goal-savebtn-${idx}`);
+  if(!inp)return;
+  inp.classList.remove('hidden');
+  span.classList.add('hidden');
+  editBtn.classList.add('hidden');
+  saveBtn.classList.remove('hidden');
+  inp.focus();inp.select();
+}
+function saveGoal(idx){
+  const inp=document.getElementById(`goal-edit-${idx}`);
+  if(!inp)return;
+  const val=inp.value.trim();
+  if(val)data.goals[idx]=val;
+  saveData();
+}
+function renderGoals(){
+  const container=document.getElementById('goals-list');
+  const tabCount=document.getElementById('goals-tab-count');
+  if(tabCount)tabCount.textContent=`${data.goals.length} goal${data.goals.length!==1?'s':''}`;
+  if(!container)return;
+  if(!data.goals.length){
+    container.innerHTML=`<div class="text-center py-12 text-zinc-500">
+      <i class="fas fa-crosshairs text-4xl mb-3 block opacity-30"></i>
+      <p class="text-sm">No 6-month goals yet.</p>
+      <p class="text-xs mt-1">Add your first goal below.</p>
+    </div>`;
+    return;
+  }
+  container.innerHTML=data.goals.map((g,i)=>`
+    <div class="card bg-zinc-900 rounded-2xl p-4 group border border-zinc-800 hover:border-violet-800 transition-colors">
+      <div class="flex items-start gap-3">
+        <div class="w-8 h-8 rounded-xl bg-violet-900 border border-violet-700 flex items-center justify-center shrink-0 mt-0.5">
+          <span class="text-xs font-bold text-violet-300">${i+1}</span>
+        </div>
+        <div class="flex-1 min-w-0">
+          <span id="goal-text-${i}" class="text-sm leading-snug block">${esc(g)}</span>
+          <input id="goal-edit-${i}" value="${esc(g)}"
+            class="hidden w-full text-sm bg-zinc-700 rounded-lg px-2 py-1 outline-none focus:ring-2 focus:ring-violet-500 mt-1"
+            onkeydown="if(event.key==='Enter')saveGoal(${i});if(event.key==='Escape')renderGoals()">
+        </div>
+        <div class="flex gap-1.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+          <button id="goal-editbtn-${i}" onclick="editGoal(${i})" class="w-7 h-7 rounded-lg bg-zinc-800 hover:bg-violet-900 flex items-center justify-center text-zinc-500 hover:text-violet-400 transition-colors" title="Edit"><i class="fas fa-pen text-xs"></i></button>
+          <button id="goal-savebtn-${i}" onclick="saveGoal(${i})" class="hidden w-7 h-7 rounded-lg bg-zinc-800 hover:bg-emerald-900 flex items-center justify-center text-zinc-500 hover:text-emerald-400 transition-colors" title="Save"><i class="fas fa-check text-xs"></i></button>
+          <button onclick="deleteGoal(${i})" class="w-7 h-7 rounded-lg bg-zinc-800 hover:bg-red-950 flex items-center justify-center text-zinc-500 hover:text-red-400 transition-colors" title="Remove"><i class="fas fa-times text-xs"></i></button>
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+// ─── Week summary ─────────────────────────────────────────────
+function getWeekLogs(){
+  const logs=[];
+  for(let i=0;i<7;i++){const d=new Date();d.setDate(d.getDate()-i);logs.push(...data.logs.filter(l=>l.date===localDateStr(d)));}
+  return logs;
+}
+function renderWeekSummary(){
+  const wl=getWeekLogs();
+  const total=wl.reduce((s,l)=>s+(l.hours||0),0);
+  const goal=data.weekGoal||40;
+  const perc=Math.min(total/goal*100,100);
+  document.getElementById('total-hours').textContent=total.toFixed(1);
+  document.getElementById('week-goal-label').textContent=`/${goal} hrs`;
+  document.getElementById('week-progress').style.width=`${perc}%`;
+  document.getElementById('week-progress-text').textContent=`${Math.round(perc)}%`;
+}
+
+// ─── History ──────────────────────────────────────────────────
+function openHistModal(id){
+  const log=data.logs.find(l=>l.id===id);if(!log)return;
+  histModalItem=log;
+  document.getElementById('hist-modal-title').textContent=log.activity;
+  document.getElementById('hist-modal-hrs').value=log.hours||1;
+  document.getElementById('hist-modal').classList.remove('hidden');
+  setTimeout(()=>document.getElementById('hist-modal-hrs').select(),200);
+}
+function closeHistModal(){ document.getElementById('hist-modal').classList.add('hidden'); histModalItem=null; }
+
+function histAddToToday(){
+  if(!histModalItem)return;
+  const hrs=parseFloat(document.getElementById('hist-modal-hrs').value)||histModalItem.hours;
+  data.tasks.push({id:uid(),task:histModalItem.activity,hours:hrs,category:histModalItem.category||'Career',impact:histModalItem.futureBenefit||'',completed:false});
+  closeHistModal();
+  showToast(`📋 Added to today's plan: "${histModalItem.activity.slice(0,28)}"`);
+  saveData(); switchTab(0);
+}
+
+function histAddToTmr(){
+  if(!histModalItem)return;
+  const hrs=parseFloat(document.getElementById('hist-modal-hrs').value)||histModalItem.hours;
+  data.tomorrowPlans.push({id:uid(),activity:histModalItem.activity,hours:hrs,category:histModalItem.category||'Career',futureBenefit:histModalItem.futureBenefit||''});
+  closeHistModal();
+  showToast(`🌙 Added to tomorrow: "${histModalItem.activity.slice(0,28)}"`);
+  saveData();
+}
+
+function deleteLog(id){
+  if(!confirm('Delete this entry?'))return;
+  data.logs=data.logs.filter(l=>l.id!==id);
+  saveData(); showToast('🗑️ Entry deleted.');
+}
+
+function renderHistory(){
+  const container=document.getElementById('history');if(!container)return;
+  const q=(document.getElementById('history-search')?.value||'').toLowerCase();
+  const filtered=q
+    ?data.logs.filter(l=>l.activity.toLowerCase().includes(q)||(l.futureBenefit||'').toLowerCase().includes(q))
+    :data.logs;
+  container.innerHTML=filtered.length
+    ?filtered.map(log=>`
+      <div class="bg-zinc-900 rounded-3xl p-5">
+        <div class="flex justify-between text-xs text-zinc-500 mb-2">
+          <span>${log.date}</span>
+          <div class="flex items-center gap-2">
+            <span class="px-2 py-0.5 rounded-full" style="background:${catColor(log.category)}22;color:${catColor(log.category)}">${esc(log.category||'')}</span>
+            <span class="font-mono">${log.hours}h</span>
+          </div>
+        </div>
+        <div class="font-medium">${esc(log.activity)}</div>
+        <div class="text-xs text-emerald-300 mt-2">${esc(log.futureBenefit||'')}</div>
+        <!-- Re-use actions -->
+        <div class="flex items-center gap-2 mt-3 flex-wrap">
+          <button onclick="openHistModal('${log.id}')"
+            class="plan-action-btn text-violet-300 border-violet-800 hover:bg-violet-950">
+            <i class="fas fa-redo" style="font-size:9px"></i> Re-use
+          </button>
+          <button onclick="deleteLog('${log.id}')"
+            class="plan-action-btn text-zinc-500 border-zinc-700 hover:text-red-400 hover:border-red-800">
+            <i class="fas fa-trash" style="font-size:9px"></i> Delete
+          </button>
+        </div>
+      </div>`).join('')
+    :`<p class="col-span-full text-center py-16 text-zinc-500">${q?'No matching entries.':'History appears here once you log activities.'}</p>`;
+}
+
+// ─── Analytics ────────────────────────────────────────────────
+let catSortBy = 'hours'; // 'hours' | 'pts' | 'name'
+
+function setCatSort(by){
+  catSortBy = by;
+  document.querySelectorAll('.cat-sort-btn').forEach(b=>{
+    const isActive = b.id === `sort-${by}`;
+    b.className = `cat-sort-btn text-xs px-3 py-1.5 rounded-xl border ${isActive?'border-violet-700 bg-violet-900 text-violet-300':'border-zinc-700 bg-zinc-800 text-zinc-400'}`;
+  });
+  renderCatBreakdown(getWeekLogs());
+}
+
+function renderCatBreakdown(wl){
+  const el=document.getElementById('cat-breakdown-table');if(!el)return;
+  if(!wl.length){el.innerHTML=`<p class="text-zinc-500 text-sm py-4 text-center">No data this week.</p>`;return;}
+  // Aggregate by category
+  const catData={};
+  wl.forEach(l=>{
+    const cat=normalizeCat(l.category);
+    if(!catData[cat])catData[cat]={cat,hours:0,pts:0,count:0};
+    catData[cat].hours+=(l.hours||0);
+    catData[cat].pts+=Math.round((l.hours||0)*(CAT_PTS_PER_HR[cat]??5));
+    catData[cat].count++;
+  });
+  let rows=Object.values(catData);
+  if(catSortBy==='hours') rows.sort((a,b)=>b.hours-a.hours);
+  else if(catSortBy==='pts') rows.sort((a,b)=>b.pts-a.pts);
+  else rows.sort((a,b)=>a.cat.localeCompare(b.cat));
+  const maxHrs=Math.max(...rows.map(r=>r.hours),0.1);
+  const totalHrs=rows.reduce((s,r)=>s+r.hours,0);
+  el.innerHTML=`
+    <div class="grid grid-cols-12 gap-2 text-xs text-zinc-500 font-medium px-2 mb-2">
+      <div class="col-span-3">Category</div>
+      <div class="col-span-4">Hours</div>
+      <div class="col-span-2 text-right">Hrs</div>
+      <div class="col-span-2 text-right">Pts</div>
+      <div class="col-span-1 text-right">%</div>
+    </div>
+    ${rows.map(r=>{
+      const col=CAT_COLORS[r.cat]||'#71717a';
+      const pct=totalHrs>0?Math.round(r.hours/totalHrs*100):0;
+      const barW=Math.round(r.hours/maxHrs*100);
+      return `<div class="grid grid-cols-12 gap-2 items-center px-2 py-2.5 rounded-xl hover:bg-zinc-800 transition-colors mb-1">
+        <div class="col-span-3 flex items-center gap-2 min-w-0">
+          <div class="w-2.5 h-2.5 rounded-full shrink-0" style="background:${col}"></div>
+          <span class="text-sm truncate">${esc(r.cat)}</span>
+        </div>
+        <div class="col-span-4">
+          <div class="h-2 rounded-full bg-zinc-700 overflow-hidden">
+            <div class="h-full rounded-full" style="width:${barW}%;background:${col};transition:width .5s"></div>
+          </div>
+        </div>
+        <div class="col-span-2 text-right font-mono text-sm" style="color:${col}">${r.hours.toFixed(1)}h</div>
+        <div class="col-span-2 text-right text-xs text-zinc-400">+${r.pts}pts</div>
+        <div class="col-span-1 text-right text-xs text-zinc-500">${pct}%</div>
+      </div>`;
+    }).join('')}
+    <div class="grid grid-cols-12 gap-2 items-center px-2 py-2 mt-1 border-t border-zinc-800">
+      <div class="col-span-3 text-xs text-zinc-500 font-medium">Total</div>
+      <div class="col-span-4"></div>
+      <div class="col-span-2 text-right font-mono text-sm text-emerald-400 font-bold">${totalHrs.toFixed(1)}h</div>
+      <div class="col-span-2 text-right text-xs text-zinc-400">+${rows.reduce((s,r)=>s+r.pts,0)}pts</div>
+      <div class="col-span-1 text-right text-xs text-zinc-500">100%</div>
+    </div>`;
+}
+
+function renderAnalytics(){
+  const wl=getWeekLogs();
+  renderDailyChart(wl); renderCategoryChart(wl); renderTopActivities(wl); renderFutureThemes(wl); renderCatBreakdown(wl);
+}
+function renderDailyChart(wl){
+  const ctx=document.getElementById('dailyChart');if(!ctx)return;
+  if(dailyChart)dailyChart.destroy();
+  const days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const cats=Object.keys(CAT_COLORS);
+  // Build per-cat per-day map
+  const catDayMap={};
+  cats.forEach(cat=>{catDayMap[cat]={};days.forEach(d=>{catDayMap[cat][d]=0;});});
+  wl.forEach(l=>{
+    const dayKey=days[new Date(l.date+'T12:00:00').getDay()];
+    const cat=normalizeCat(l.category);  // normalize legacy names
+    if(cat&&CAT_COLORS[cat])catDayMap[cat][dayKey]=(catDayMap[cat][dayKey]||0)+(l.hours||0);
+  });
+  // Only include cats that have any data
+  const activeCats=cats.filter(cat=>days.some(d=>catDayMap[cat][d]>0));
+  const datasets=activeCats.map(cat=>({
+    label:cat,
+    data:days.map(d=>catDayMap[cat][d]||0),
+    backgroundColor:CAT_COLORS[cat]+'cc',
+    borderColor:CAT_COLORS[cat],
+    borderWidth:1,
+    borderRadius:3,
+  }));
+  dailyChart=new Chart(ctx,{type:'bar',data:{labels:days,datasets},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:true,position:'top',labels:{color:'#a1a1aa',font:{size:10},boxWidth:10,padding:8}}},
+      scales:{
+        y:{beginAtZero:true,stacked:true,ticks:{stepSize:2,color:'#71717a'},grid:{color:'#27272a'}},
+        x:{stacked:true,ticks:{color:'#71717a'},grid:{color:'#27272a'}}
+      }}});
+}
+function normalizeCat(cat){
+  // Remap legacy category names to current ones
+  const LEGACY={'Personal':'Personal/Family','Finance':'Working','On Phone':'Me Time'};
+  return LEGACY[cat]||cat||'Career';
+}
+function renderCategoryChart(wl){
+  const ctx=document.getElementById('categoryChart');if(!ctx)return;
+  if(categoryChart)categoryChart.destroy();
+  const catMap={};
+  wl.forEach(l=>{const cat=normalizeCat(l.category);catMap[cat]=(catMap[cat]||0)+(l.hours||0);});
+  const labels=Object.keys(catMap),values=Object.values(catMap);
+  const colors=labels.map(l=>CAT_COLORS[l]||'#71717a');
+  if(!labels.length){const p=ctx.parentElement;p.innerHTML='<p class="text-zinc-500 text-sm py-16 text-center">No data this week.</p>';return;}
+  categoryChart=new Chart(ctx,{type:'doughnut',
+    data:{labels,datasets:[{data:values,backgroundColor:colors.map(col=>col+'cc'),borderColor:colors,borderWidth:2,hoverOffset:6}]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{position:'right',labels:{color:'#e4e4e7',font:{size:11},padding:10,usePointStyle:true}}},
+      cutout:'60%'}});
+}
+function renderTopActivities(wl){
+  const map={};
+  wl.forEach(l=>{const k=l.activity.trim().toLowerCase();map[k]={display:l.activity,hours:(map[k]?.hours||0)+l.hours};});
+  const sorted=Object.values(map).sort((a,b)=>b.hours-a.hours).slice(0,5);
+  document.getElementById('top-activities').innerHTML=sorted.length
+    ?sorted.map(({display,hours})=>`<div class="flex justify-between bg-zinc-800 rounded-2xl px-5 py-3"><div class="truncate mr-4">${esc(display)}</div><div class="font-mono text-emerald-400 shrink-0">${hours.toFixed(1)}h</div></div>`).join('')
+    :`<p class="text-zinc-500 text-sm">Log activities to see top ones.</p>`;
+}
+function renderFutureThemes(wl){
+  const themes={};
+  wl.forEach(l=>(l.futureBenefit||'').toLowerCase().replace(/[^a-z\s]/g,'').split(/\s+/).filter(w=>w.length>3&&!STOP_WORDS.has(w)).forEach(w=>themes[w]=(themes[w]||0)+1));
+  const top=Object.entries(themes).sort((a,b)=>b[1]-a[1]).slice(0,6);
+  document.getElementById('future-themes').innerHTML=top.length
+    ?top.map(([t,c])=>`<div class="bg-zinc-800 rounded-2xl p-4 text-center"><div class="text-violet-300 font-medium capitalize">${esc(t)}</div><div class="text-xs text-zinc-500 mt-1">${c} mention${c>1?'s':''}</div></div>`).join('')
+    :`<p class="col-span-full text-center text-zinc-500 py-4 text-sm">Add future benefit notes to see themes.</p>`;
+}
+
+let calYear = new Date().getFullYear();
+let calMonth = new Date().getMonth();
+
+function renderImprovedCalendar() {
+  const header = document.getElementById('calendar-month-year');
+  header.textContent = new Date(calYear, calMonth).toLocaleString('default', { month: 'long', year: 'numeric' });
+
+  const grid = document.getElementById('calendar-grid');
+  grid.innerHTML = '';
+
+  const firstDay = new Date(calYear, calMonth, 1).getDay();
+  const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+
+  // Empty cells before first day
+  for (let i = 0; i < firstDay; i++) {
+    const empty = document.createElement('div');
+    empty.className = 'h-28 bg-zinc-950 rounded-2xl';
+    grid.appendChild(empty);
+  }
+
+  // Actual days
+  for (let day = 1; day <= daysInMonth; day++) {
+    const dateStr = `${calYear}-${String(calMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    
+    const hasFuturePlan = data.futurePlans.some(p => p.date === dateStr);
+    const hasRecurring = data.recurringTasks && data.recurringTasks.some(r => isRecurringOnDate(r, dateStr));
+
+    const cell = document.createElement('div');
+    cell.className = `h-28 bg-zinc-900 hover:bg-zinc-800 rounded-2xl p-3 flex flex-col cursor-pointer transition-colors border ${hasFuturePlan || hasRecurring ? 'border-emerald-400' : 'border-transparent'}`;
+    
+    cell.innerHTML = `
+      <div class="text-right text-sm ${hasFuturePlan || hasRecurring ? 'text-emerald-400 font-bold' : 'text-zinc-400'}">${day}</div>
+      ${(hasFuturePlan || hasRecurring) ? `<div class="mt-auto text-xs text-emerald-400 flex items-center gap-1"><i class="fas fa-calendar-check"></i> plan</div>` : ''}
+    `;
+    
+    cell.onclick = () => openFuturePlanForDate(dateStr);
+    grid.appendChild(cell);
+  }
+}
+
+function isRecurringOnDate(recurringTask, dateStr) {
+  // Simple weekly example - expand later if needed
+  const dayOfWeek = new Date(dateStr).getDay();
+  return recurringTask.daysOfWeek && recurringTask.daysOfWeek.includes(dayOfWeek);
+}
+
+function calendarPrevMonth() {
+  calMonth--;
+  if (calMonth < 0) { calMonth = 11; calYear--; }
+  renderImprovedCalendar();
+}
+
+function calendarNextMonth() {
+  calMonth++;
+  if (calMonth > 11) { calMonth = 0; calYear++; }
+  renderImprovedCalendar();
+}
+
+function calendarGoToday() {
+  const now = new Date();
+  calYear = now.getFullYear();
+  calMonth = now.getMonth();
+  renderImprovedCalendar();
+}
+
+function openFuturePlanForDate(dateStr) {
+  document.getElementById('fp-date').value = dateStr;
+  document.getElementById('future-plan-modal').classList.remove('hidden');
+  document.getElementById('fp-date-label').textContent = `for ${new Date(dateStr).toLocaleDateString('en-US', {weekday:'long', month:'long', day:'numeric'})}`;
+}
+
+// ─── Submit Log ───────────────────────────────────────────────
+function getWeekKey(){
+  const d=new Date(),jan4=new Date(d.getFullYear(),0,4),s1=new Date(jan4);
+  s1.setDate(jan4.getDate()-((jan4.getDay()+6)%7));
+  const wn=Math.ceil(((d-s1)/86400000+1)/7);
+  return d.getFullYear()+'-W'+String(wn).padStart(2,'0');
+}
+function daysUntilSunday(){ const day=new Date().getDay();return day===0?0:7-day; }
+function isWeekSubmitted(wk){ return (data.submissions||[]).some(s=>s.weekKey===wk); }
+function getWeekLogsForKey(wk){
+  return data.logs.filter(l=>{
+    const d=new Date(l.date+'T12:00:00'),jan4=new Date(d.getFullYear(),0,4),s1=new Date(jan4);
+    s1.setDate(jan4.getDate()-((jan4.getDay()+6)%7));
+    const wn=Math.ceil(((d-s1)/86400000+1)/7);
+    return d.getFullYear()+'-W'+String(wn).padStart(2,'0')===wk;
+  });
+}
+function renderSubmitBanner(){
+  const banner=document.getElementById('submit-banner'),btn=document.getElementById('submit-btn'),lbl=document.getElementById('submit-btn-label');
+  if(!banner||!btn)return;
+  const wk=getWeekKey(),submitted=isWeekSubmitted(wk),days=daysUntilSunday(),day=new Date().getDay();
+  if(submitted){
+    banner.className='mb-5';
+    banner.innerHTML=`<div class="flex items-center gap-3 bg-emerald-950 border border-emerald-800 rounded-2xl px-5 py-4"><i class="fas fa-check-circle text-emerald-400 text-xl"></i><div><p class="text-emerald-300 font-medium text-sm">This week's log submitted ✓</p><p class="text-emerald-700 text-xs">Next submission due Sunday</p></div><button onclick="openSubmitModal()" class="ml-auto text-xs text-emerald-600 hover:text-emerald-400 underline">View</button></div>`;
+    btn.className='px-4 py-2 text-xs bg-emerald-950 border border-emerald-800 text-emerald-600 rounded-xl flex items-center gap-2';lbl.textContent='Submitted ✓';return;
+  }
+  const configs={
+    0:{cls:'bg-red-950 border-red-800',icon:'fas fa-exclamation-circle text-red-400',text:'Due today — Sunday submission deadline',btnCls:'bg-red-600 hover:bg-red-500 text-white',urgent:true},
+    1:{cls:'bg-amber-950 border-amber-800',icon:'fas fa-clock text-amber-400',text:'Due tomorrow — submit your weekly log by Sunday',btnCls:'bg-emerald-600 hover:bg-emerald-500 text-white',urgent:false},
+  };
+  const cfg=days===0?configs[0]:days===1?configs[1]:days<=3?{cls:'bg-zinc-900 border-zinc-700',icon:'fas fa-calendar-week text-zinc-300',text:`Due in ${days} days — weekly log due Sunday`,btnCls:'bg-emerald-600 hover:bg-emerald-500 text-white',urgent:false}:null;
+  if(!cfg){banner.className='hidden';btn.className='px-4 py-2 text-xs bg-emerald-900 hover:bg-emerald-800 text-emerald-400 rounded-xl flex items-center gap-2';lbl.textContent='Submit Log';return;}
+  banner.className='mb-5';
+  banner.innerHTML=`<div class="flex items-center gap-3 border ${cfg.cls} rounded-2xl px-5 py-4"><i class="${cfg.icon} text-xl"></i><p class="text-sm font-medium ${cfg.icon.includes('red')?'text-red-400':cfg.icon.includes('amber')?'text-amber-400':'text-zinc-300'}">${cfg.text}</p><button onclick="openSubmitModal()" class="ml-auto px-5 py-2 rounded-xl text-xs font-semibold ${cfg.btnCls}">Submit Log</button></div>`;
+  btn.className=`${cfg.urgent?'submit-badge-urgent ':''} px-4 py-2 text-xs ${cfg.urgent?'bg-red-800 hover:bg-red-700 text-white':'bg-emerald-900 hover:bg-emerald-800 text-emerald-400'} rounded-xl flex items-center gap-2`;
+  lbl.textContent=cfg.urgent?'Submit Now!':'Submit Log';
+}
+// ─── Points Engine ────────────────────────────────────────────
+function calcWeekPoints(wk){
+  const logs=getWeekLogsForKey(wk);
+  let pts=0; const breakdown=[];
+  // Hours × category multiplier
+  const catHrs={};
+  logs.forEach(l=>{catHrs[l.category]=(catHrs[l.category]||0)+(l.hours||0);});
+  Object.entries(catHrs).forEach(([c,h])=>{
+    const mul=CAT_PTS_PER_HR[c]??5;
+    if(mul>0){const p=Math.round(h*mul);pts+=p;breakdown.push({label:`${c} (${h.toFixed(1)}h × ${mul} pts/hr)`,pts:p});}
+  });
+  // Plan creation events this week
+  const ev=(data.planEvents||[]).filter(e=>e.weekKey===wk);
+  const add=(type,label,rate)=>{const n=ev.filter(e=>e.type===type).length;if(n){const p=n*rate;pts+=p;breakdown.push({label:`${label} (×${n})`,pts:p});}};
+  add('unplanned','Unplanned activities logged',PTS.LOG_UNPLANNED);
+  add('today',    'Today plans created',        PTS.PLAN_TODAY);
+  add('tomorrow', 'Tomorrow plans created',     PTS.PLAN_TOMORROW);
+  add('future',   'Future plans created',       PTS.PLAN_FUTURE);
+  add('complete', 'Planned tasks completed',    PTS.COMPLETE_PLANNED);
+  add('perfect_day','Perfect days',             PTS.PERFECT_DAY);
+  // Early bird: 5+ early mornings
+  const earlyCount=ev.filter(e=>e.type==='early_bird').length;
+  if(earlyCount>=5){pts+=PTS.EARLY_BIRD;breakdown.push({label:`Early bird (${earlyCount} mornings before 8am)`,pts:PTS.EARLY_BIRD});}
+  // Weekly target
+  const totalHrs=logs.reduce((s,l)=>s+(l.hours||0),0);
+  if(totalHrs>=(data.weekGoal||40)){pts+=PTS.WEEKLY_TARGET;breakdown.push({label:'Weekly hour target hit 🎯',pts:PTS.WEEKLY_TARGET});}
+  // 7-day streak
+  let streak=0;
+  for(let i=0;i<7;i++){const ds=localDateStr(new Date(Date.now()-i*86400000));if(data.logs.some(l=>l.date===ds))streak++;else break;}
+  if(streak>=7){pts+=PTS.STREAK_7;breakdown.push({label:'7-day logging streak 🔥',pts:PTS.STREAK_7});}
+  return {pts:Math.round(pts),breakdown,totalHrs};
+}
+
+function getAllowanceTier(pts){
+  return ALLOWANCE_TIERS.find(t=>pts>=t.min)||ALLOWANCE_TIERS[ALLOWANCE_TIERS.length-1];
+}
+
+// ─── Badge Engine ─────────────────────────────────────────────
+function checkAndAwardBadges(wk,pts,logs,totalHrs){
+  if(!data.badges)data.badges=[];
+  const newBadges=[];
+  const has=id=>data.badges.some(b=>b.id===id);
+  const award=id=>{const def=BADGE_DEFS.find(b=>b.id===id);if(!def||has(id))return;data.badges.push({id,earnedAt:new Date().toISOString(),weekKey:wk});newBadges.push(def);};
+  const ev=(data.planEvents||[]).filter(e=>e.weekKey===wk);
+  const prevBest=Math.max(0,...(data.weeklyPointsHistory||[]).map(w=>w.pts));
+  if(pts>prevBest&&pts>0)award('best_week');
+  if(pts>=850)award('apex_lynx');
+  if(logs.filter(l=>l.category==='Career').reduce((s,l)=>s+(l.hours||0),0)>=20)award('career_builder');
+  if(logs.filter(l=>l.category==='Learning').reduce((s,l)=>s+(l.hours||0),0)>=20)award('scholar');
+  if(logs.filter(l=>l.category==='Fitness').length>=5)award('iron_week');
+  let streak=0;for(let i=0;i<7;i++){const ds=localDateStr(new Date(Date.now()-i*86400000));if(data.logs.some(l=>l.date===ds))streak++;else break;}
+  if(streak>=7)award('on_fire');
+  if(ev.filter(e=>e.type==='perfect_day').length>=1)award('perfect_day');
+  if(ev.filter(e=>e.type==='early_bird').length>=5)award('early_bird');
+  if(new Set(ev.filter(e=>e.type==='tomorrow').map(e=>e.date)).size>=5)award('planner');
+  const recent3=(data.weeklyPointsHistory||[]).slice(-3);
+  if(recent3.length>=3&&recent3.every(w=>w.hitTarget)&&totalHrs>=(data.weekGoal||40))award('goal_crusher');
+  return newBadges;
+}
+
+// ─── Record plan/action events ────────────────────────────────
+function recordPlanEvent(type){
+  if(!data.planEvents)data.planEvents=[];
+      if(!data.recurringTasks)data.recurringTasks=[];
+  data.planEvents.push({type,weekKey:getWeekKey(),date:localDateStr(),at:new Date().toISOString()});
+}
+
+// ─── Points display in modal ──────────────────────────────────
+function renderPointsPanel(pts,breakdown,tier){
+  const col=tier.weekly>0?(pts>=850?'text-yellow-400':pts>=700?'text-emerald-400':'text-blue-400'):'text-red-400';
+  const allowHtml=tier.weekly>0
+    ?`<div class="text-center py-4 bg-emerald-950 border border-emerald-800 rounded-2xl">
+        <div class="text-3xl font-bold text-emerald-400">$${tier.weekly.toFixed(2)}</div>
+        <div class="text-xs text-emerald-600 mt-1">weekly allowance · ${tier.label} pts (+${tier.pct}% bonus)</div>
+      </div>`
+    :`<div class="text-center py-4 bg-red-950 border border-red-800 rounded-2xl">
+        <div class="text-2xl font-bold text-red-400">No allowance</div>
+        <div class="text-xs text-red-700 mt-1">Need 300+ points — earned ${pts}</div>
+      </div>`;
+  return `<div class="space-y-3">
+    <div class="flex items-center justify-between bg-zinc-800 rounded-2xl px-5 py-4">
+      <span class="text-zinc-400 text-sm font-medium">Points this week</span>
+      <span class="text-3xl font-bold ${col}">${pts}</span>
+    </div>
+    ${allowHtml}
+    <details class="bg-zinc-800 rounded-2xl px-4 py-3 cursor-pointer">
+      <summary class="text-xs text-zinc-500 list-none flex items-center justify-between font-medium">
+        Points breakdown <i class="fas fa-chevron-down text-xs"></i>
+      </summary>
+      <div class="mt-3 space-y-1.5">
+        ${breakdown.length?breakdown.map(b=>`<div class="flex justify-between text-xs"><span class="text-zinc-400">${b.label}</span><span class="text-emerald-400 font-mono font-bold">+${b.pts}</span></div>`).join(''):'<span class="text-xs text-zinc-600">No points yet this week.</span>'}
+      </div>
+    </details>
+  </div>`;
+}
+
+// ─── Email builder ────────────────────────────────────────────
+function buildEmail(wk,logs,pts,tier,newBadges,allBadges,breakdown,reflection,weekLabel){
+  const totalHrs=logs.reduce((s,l)=>s+(l.hours||0),0);
+  const catTotals={};logs.forEach(l=>{catTotals[l.category]=(catTotals[l.category]||0)+(l.hours||0);});
+  const catLines=Object.entries(catTotals).sort((a,b)=>b[1]-a[1]).map(([c,h])=>`  • ${c}: ${h.toFixed(1)}h`).join('\n');
+  const actLines=logs.map(l=>`  [${l.date}] ${l.hours}h — ${l.activity} (${l.category})`).join('\n');
+  const bdLines=breakdown.map(b=>`  + ${b.label}: ${b.pts} pts`).join('\n')||'  No points earned.';
+  const badgeLines=allBadges.length?allBadges.map(b=>{const d=BADGE_DEFS.find(x=>x.id===b.id);return d?`  ${d.emoji} ${d.name}`:''}).filter(Boolean).join('\n'):'  None yet — keep grinding!';
+  const newBadgeBlock=newBadges.length?'\nNEW BADGES EARNED THIS WEEK:\n'+newBadges.map(b=>`  ${b.emoji} ${b.name} — ${b.desc}`).join('\n'):'';
+  const allowLine=tier.weekly>0
+    ?`ALLOWANCE EARNED: $${tier.weekly.toFixed(2)}/week\n   Tier: ${tier.label} points (+${tier.pct}% bonus)`
+    :`NO ALLOWANCE — Need 300+ points (earned ${pts})`;
+  return `LYNXTRACK WEEKLY REPORT
+Week: ${weekLabel}
+Submitted: ${new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'})}
+${'─'.repeat(50)}
+
+POINTS SUMMARY
+Total Points: ${pts}
+${allowLine}
+
+POINTS BREAKDOWN
+${bdLines}
+
+HOURS BY CATEGORY
+${catLines}
+Total Hours: ${totalHrs.toFixed(1)}h  |  Goal: ${data.weekGoal||40}h
+
+ALL-TIME BADGES (${allBadges.length})
+${badgeLines}
+${newBadgeBlock}
+
+ACTIVITIES LOGGED (${logs.length})
+${actLines}
+${reflection?`\nWEEKLY REFLECTION\n  "${reflection}"`:''}
+${'─'.repeat(50)}
+LynxTrack — Learn. Grow. Pounce. 🐾`;
+}
+
+// ─── Submit Modal ─────────────────────────────────────────────
+function openSubmitModal(){
+  const wk=getWeekKey(),logs=getWeekLogsForKey(wk),total=logs.reduce((s,l)=>s+(l.hours||0),0);
+  const submitted=isWeekSubmitted(wk),prev=submitted?data.submissions.find(s=>s.weekKey===wk):null;
+  const now=new Date(),sun=new Date(now);sun.setDate(now.getDate()+(7-now.getDay())%7||7);
+  const mon=new Date(sun);mon.setDate(sun.getDate()-6);
+  const weekLabel=mon.toLocaleDateString('en-US',{month:'short',day:'numeric'})+' – '+sun.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+  document.getElementById('modal-week-label').textContent=weekLabel;
+  document.getElementById('submit-reflection').value=prev?.reflection||'';
+  const {pts,breakdown}=calcWeekPoints(wk);
+  const tier=getAllowanceTier(pts);
+  const summaryEl=document.getElementById('modal-summary');
+  if(!logs.length){
+    summaryEl.innerHTML=`<div class="text-center py-6 text-zinc-500"><i class="fas fa-inbox text-3xl mb-2 block"></i>No activities logged this week yet.</div>`;
+  } else {
+    const wkBadges=(data.badges||[]).filter(b=>b.weekKey===wk);
+    summaryEl.innerHTML=`
+      <div class="grid grid-cols-3 gap-3 mb-4">
+        <div class="bg-zinc-800 rounded-2xl p-4 text-center"><div class="text-3xl font-bold text-emerald-400">${total.toFixed(1)}</div><div class="text-xs text-zinc-500 mt-1">total hours</div></div>
+        <div class="bg-zinc-800 rounded-2xl p-4 text-center"><div class="text-3xl font-bold text-violet-400">${logs.length}</div><div class="text-xs text-zinc-500 mt-1">activities</div></div>
+        <div class="bg-zinc-800 rounded-2xl p-4 text-center"><div class="text-3xl font-bold text-indigo-400">${new Set(logs.map(l=>l.date)).size}</div><div class="text-xs text-zinc-500 mt-1">active days</div></div>
+      </div>
+      ${renderPointsPanel(pts,breakdown,tier)}
+      ${wkBadges.length?`<div class="bg-zinc-800 rounded-2xl px-4 py-3 mt-3"><div class="text-xs text-zinc-500 mb-2">Badges earned this week</div><div class="flex gap-2 flex-wrap">${wkBadges.map(b=>{const d=BADGE_DEFS.find(x=>x.id===b.id);return d?`<span title="${d.name} — ${d.desc}" class="text-2xl cursor-help">${d.emoji}</span>`:''}).join('')}</div></div>`:''}
+      <div class="space-y-2 max-h-36 overflow-y-auto pr-1 mt-3">
+        ${logs.map(l=>`<div class="flex items-center gap-3 bg-zinc-800 rounded-xl px-4 py-2.5"><span class="font-mono text-emerald-400 text-sm w-10 shrink-0">${l.hours}h</span><span class="text-sm flex-1 truncate">${esc(l.activity)}</span><span class="text-xs text-zinc-600 shrink-0">${l.date}</span></div>`).join('')}
+      </div>
+      ${submitted?'<div class="mt-3 flex justify-center"><span class="submitted-stamp"><i class="fas fa-check text-xs"></i> Previously submitted</span></div>':''}`;
+  }
+  document.getElementById('submit-modal').classList.remove('hidden');
+}
+
+function closeSubmitModal(){ document.getElementById('submit-modal').classList.add('hidden'); }
+
+function confirmSubmit(){
+  const wk=getWeekKey();
+  const logs=getWeekLogsForKey(wk);
+  const total=logs.reduce((s,l)=>s+(l.hours||0),0);
+  const reflection=document.getElementById('submit-reflection').value.trim();
+  const {pts,breakdown,totalHrs}=calcWeekPoints(wk);
+  const tier=getAllowanceTier(pts);
+  const newBadges=checkAndAwardBadges(wk,pts,logs,totalHrs);
+  // Store week history (badges survive; weekly score resets next week naturally)
+  if(!data.weeklyPointsHistory)data.weeklyPointsHistory=[];
+  data.weeklyPointsHistory=data.weeklyPointsHistory.filter(w=>w.weekKey!==wk);
+  data.weeklyPointsHistory.push({weekKey:wk,pts,totalHrs,hitTarget:totalHrs>=(data.weekGoal||40)});
+  // Save submission
+  data.submissions=(data.submissions||[]).filter(s=>s.weekKey!==wk);
+  data.submissions.push({weekKey:wk,submittedAt:new Date().toISOString(),totalHours:total,activityCount:logs.length,reflection,pts,allowance:tier.weekly});
+  saveData();
+  // Build email
+  const now=new Date(),sun=new Date(now);sun.setDate(now.getDate()+(7-now.getDay())%7||7);
+  const mon=new Date(sun);mon.setDate(sun.getDate()-6);
+  const weekLabel=mon.toLocaleDateString('en-US',{month:'short',day:'numeric'})+' – '+sun.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+  const body=buildEmail(wk,logs,pts,tier,newBadges,data.badges||[],breakdown,reflection,weekLabel);
+  const subject=encodeURIComponent(`LynxTrack ${weekLabel} — ${pts} pts — ${tier.weekly>0?'$'+tier.weekly.toFixed(2)+' earned':'No allowance'}`);
+  const mailto=`mailto:${REPORT_EMAILS}?subject=${subject}&body=${encodeURIComponent(body)}`;
+  closeSubmitModal();
+  // Show badge toasts, then open mail client
+  newBadges.forEach((b,i)=>setTimeout(()=>showToast(`${b.emoji} Badge unlocked: ${b.name}!`,3500),i*900));
+  setTimeout(()=>{window.location.href=mailto;},newBadges.length*900+300);
+  showToast(`📋 ${pts} pts — ${tier.weekly>0?'$'+tier.weekly.toFixed(2)+' allowance earned!':'No allowance this week.'}`,4000);
+  renderSubmitBanner();
+  renderAll();
+}
+
+// ─── Future Impact Hints by Category ─────────────────────────
+const CAT_IMPACT_HINTS = {
+  Career:                 'Builds my professional reputation and opens doors to opportunities',
+  Learning:               'Compounds into marketable skills that increase my earning potential',
+  Fitness:                'Builds the physical foundation and discipline everything else runs on',
+  Working:                'Generates income and real-world experience toward financial independence',
+  'Personal/Family': 'Develops reliability, maturity, and life skills that strengthen independence',
+  Volunteering:           'Expands my network, builds character, and strengthens my resume',
+  'Me Time':              'Rest and personal time — essential for sustainable performance',
+};
+function updateFutureImpactHint(){
+  const catEl = document.getElementById('category-input');
+  const field  = document.getElementById('future-impact-hint');
+  if(!catEl||!field) return;
+  field.placeholder = CAT_IMPACT_HINTS[catEl.value] || 'How does this move you forward?';
+}
+async function askClaude(impactId,activityId,hoursId,btnId){
+  const activity=document.getElementById(activityId)?.value.trim();
+  const hours=document.getElementById(hoursId)?.value;
+  const btn=document.getElementById(btnId);
+  const field=document.getElementById(impactId);
+  if(!activity){showToast('Enter an activity first.');document.getElementById(activityId)?.focus();return;}
+  const goals=data.goals.length?data.goals.join('\n• '):'No long-term goals set — give general career and life advice for a 21-year-old.';
+  btn.disabled=true;const origHTML=btn.innerHTML;
+  btn.innerHTML='<i class="fas fa-spinner fa-spin" style="font-size:10px"></i> Thinking…';
+  field.placeholder='Claude is thinking…';
+  const prompt=`You are a concise life and career coach for a driven 21-year-old who recently finished community college.\n\nActivity: "${activity}" (${hours||'?'} hours)\nCategory: ${document.getElementById(activityId.replace('future-input','category-input').replace('plan-future','plan-category').replace('fp-impact','fp-category'))?.value||'General'}\n\n6-month goals:\n• ${goals}\n\nWrite ONE sharp sentence (max 18 words) connecting this specific activity to one of their 6-month goals. Be concrete, not generic. No fluff. Just the sentence.`;
+  try{
+    const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:100,messages:[{role:'user',content:prompt}]})});
+    if(!res.ok)throw new Error(`API ${res.status}`);
+    const json=await res.json();
+    const text=json.content?.find(b=>b.type==='text')?.text?.trim();
+    if(text){field.value=text;field.focus();field.style.boxShadow='0 0 0 2px #4ade80';setTimeout(()=>field.style.boxShadow='',1400);showToast('✨ Claude filled in the impact!');}
+    else showToast('⚠️ Claude returned empty.');
+  }catch(err){showToast('⚠️ Could not reach Claude.');}
+  finally{btn.disabled=false;btn.innerHTML=origHTML;updateFutureImpactHint();}
+}
+
+// ─── Edit Modal ───────────────────────────────────────────────
+let editContext = null; // { type: 'log'|'task'|'tmr', id }
+
+function openEditModal(type, id) {
+  let item;
+  if (type === 'log')  item = data.logs.find(l => l.id === id);
+  if (type === 'task') item = data.tasks.find(t => t.id === id);
+  if (type === 'tmr')  item = data.tomorrowPlans.find(p => p.id === id);
+  if (!item) return;
+  editContext = { type, id };
+
+  document.getElementById('edit-activity').value = item.activity || item.task || '';
+  document.getElementById('edit-hours').value    = item.hours || 1;
+  document.getElementById('edit-category').value = item.category || 'Career';
+  document.getElementById('edit-impact').value   = item.futureBenefit || item.impact || '';
+
+  // Date field: only show for log entries
+  const dateRow = document.getElementById('edit-date-row');
+  const hoursLbl = document.getElementById('edit-hours-label');
+  if (type === 'log') {
+    dateRow.style.display = 'block';
+    document.getElementById('edit-date').value = item.date || localDateStr();
+    hoursLbl.textContent = 'Hours spent';
+  } else {
+    dateRow.style.display = 'none';
+    hoursLbl.textContent = 'Hours planned';
+  }
+
+  document.getElementById('edit-modal').classList.remove('hidden');
+  setTimeout(() => document.getElementById('edit-activity').focus(), 200);
+}
+
+function closeEditModal() {
+  document.getElementById('edit-modal').classList.add('hidden');
+  editContext = null;
+}
+
+function saveEdit() {
+  if (!editContext) return;
+  const { type, id } = editContext;
+  const activity = document.getElementById('edit-activity').value.trim();
+  const hours    = parseFloat(document.getElementById('edit-hours').value) || 1;
+  const category = document.getElementById('edit-category').value;
+  const impact   = document.getElementById('edit-impact').value.trim();
+  if (!activity) { showToast('⚠️ Activity name required.'); return; }
+
+  if (type === 'log') {
+    const date = document.getElementById('edit-date').value || localDateStr();
+    const i = data.logs.findIndex(l => l.id === id);
+    if (i !== -1) data.logs[i] = { ...data.logs[i], activity, hours, category, futureBenefit: impact, date };
+  } else if (type === 'task') {
+    const i = data.tasks.findIndex(t => t.id === id);
+    if (i !== -1) data.tasks[i] = { ...data.tasks[i], task: activity, hours, category, impact };
+  } else if (type === 'tmr') {
+    const i = data.tomorrowPlans.findIndex(p => p.id === id);
+    if (i !== -1) data.tomorrowPlans[i] = { ...data.tomorrowPlans[i], activity, hours, category, futureBenefit: impact };
+  }
+
+  closeEditModal();
+  showToast('✏️ Entry updated.');
+  saveData();
+}
+
+// ─── Future Plans ─────────────────────────────────────────────
+// futurePlans: [{id, date, activity, hours, category, impact}]
+// stored in data.futurePlans
+
+let fpCalYear  = new Date().getFullYear();
+let fpCalMonth = new Date().getMonth();
+let fpSelectedDate = null;
+
+function openFuturePlanModal(prefillDate) {
+  const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
+  document.getElementById('fp-activity').value = '';
+  document.getElementById('fp-hours').value = '1';
+  document.getElementById('fp-category').value = 'Career';
+  document.getElementById('fp-impact').value = '';
+  document.getElementById('fp-date').value = prefillDate || localDateStr(tomorrow);
+  updateFpDateLabel();
+  document.getElementById('future-plan-modal').classList.remove('hidden');
+  setTimeout(() => document.getElementById('fp-activity').focus(), 200);
+}
+
+function openFuturePlanModalForDate() {
+  if (fpSelectedDate) openFuturePlanModal(fpSelectedDate);
+}
+
+function closeFuturePlanModal() {
+  document.getElementById('future-plan-modal').classList.add('hidden');
+}
+
+function updateFpDateLabel() {
+  const val  = document.getElementById('fp-date').value;
+  const lbl  = document.getElementById('fp-date-label');
+  if (!val) { lbl.textContent = ''; return; }
+  const today = localDateStr();
+  const tomorrow = (() => { const d = new Date(); d.setDate(d.getDate()+1); return localDateStr(d); })();
+  if (val === today)    { lbl.textContent = '📌 Today'; lbl.className = 'text-xs mt-1 text-amber-400'; }
+  else if (val === tomorrow) { lbl.textContent = '🌙 Tomorrow'; lbl.className = 'text-xs mt-1 text-indigo-400'; }
+  else if (val > today) {
+    const d = new Date(val + 'T12:00:00');
+    const diff = Math.round((d - new Date()) / 86400000);
+    lbl.textContent = `📅 In ${diff} day${diff !== 1 ? 's' : ''} — ${d.toLocaleDateString('en-US', {weekday:'long', month:'short', day:'numeric'})}`;
+    lbl.className = 'text-xs mt-1 text-emerald-400';
+  } else {
+    lbl.textContent = '⚠️ Date is in the past';
+    lbl.className = 'text-xs mt-1 text-red-400';
+  }
+}
+
+function saveFuturePlan() {
+  const activity = document.getElementById('fp-activity').value.trim();
+  const date     = document.getElementById('fp-date').value;
+  const hours    = parseFloat(document.getElementById('fp-hours').value) || 1;
+  const category = document.getElementById('fp-category').value;
+  const impact   = document.getElementById('fp-impact').value.trim();
+  if (!activity) { showToast('⚠️ Activity name required.'); document.getElementById('fp-activity').focus(); return; }
+  if (!date)     { showToast('⚠️ Please pick a date.'); return; }
+
+  if (!data.futurePlans) data.futurePlans = [];
+  data.futurePlans.push({ id: uid(), date, activity, hours, category, impact: impact || CAT_IMPACT_HINTS[category] || 'How does this move you forward?' });
+  data.futurePlans.sort((a, b) => a.date.localeCompare(b.date));
+  recordPlanEvent('future');
+  closeFuturePlanModal();
+  showToast(`📅 Planned: "${activity.slice(0,28)}" on ${date}`);
+  saveData();
+  if (activeTab === 4) renderFuturePlansTab();
+}
+
+function deleteFuturePlan(id) {
+  data.futurePlans = (data.futurePlans || []).filter(p => p.id !== id);
+  saveData();
+  if (activeTab === 4) renderFuturePlansTab();
+  showToast('Removed future plan.');
+}
+
+function editFuturePlan(id) {
+  const p = (data.futurePlans || []).find(x => x.id === id);
+  if (!p) return;
+  // Pre-fill the future plan modal for editing
+  document.getElementById('fp-activity').value = p.activity;
+  document.getElementById('fp-date').value     = p.date;
+  document.getElementById('fp-hours').value    = p.hours;
+  document.getElementById('fp-category').value = p.category;
+  document.getElementById('fp-impact').value   = p.impact || '';
+  updateFpDateLabel();
+  // Remove old entry, save on submit
+  data.futurePlans = data.futurePlans.filter(x => x.id !== id);
+  document.getElementById('future-plan-modal').classList.remove('hidden');
+  setTimeout(() => document.getElementById('fp-activity').focus(), 200);
+}
+
+function moveFpToToday(id) {
+  const p = (data.futurePlans || []).find(x => x.id === id);
+  if (!p) return;
+  data.tasks.push({ id: uid(), task: p.activity, hours: p.hours, category: p.category, impact: p.impact, completed: false });
+  data.futurePlans = data.futurePlans.filter(x => x.id !== id);
+  showToast(`📋 Moved to today's plan: "${p.activity.slice(0,28)}"`);
+  saveData();
+  if (activeTab === 4) renderFuturePlansTab();
+}
+
+// ─── Calendar rendering ───────────────────────────────────────
+function fpCalPrev() {
+  fpCalMonth--;
+  if (fpCalMonth < 0) { fpCalMonth = 11; fpCalYear--; }
+  renderFpCalendar();
+}
+function fpCalNext() {
+  fpCalMonth++;
+  if (fpCalMonth > 11) { fpCalMonth = 0; fpCalYear++; }
+  renderFpCalendar();
+}
+function fpCalToday() {
+  const now = new Date();
+  fpCalYear = now.getFullYear(); fpCalMonth = now.getMonth();
+  renderFpCalendar();
+}
+
+function renderFpCalendar() {
+  const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  document.getElementById('fp-cal-month').textContent = `${months[fpCalMonth]} ${fpCalYear}`;
+
+  const plans = data.futurePlans || [];
+  const planDates = new Set(plans.map(p => p.date));
+  const today = localDateStr();
+
+  const firstDay = new Date(fpCalYear, fpCalMonth, 1).getDay();
+  const daysInMonth = new Date(fpCalYear, fpCalMonth + 1, 0).getDate();
+  const prevDays = new Date(fpCalYear, fpCalMonth, 0).getDate();
+
+  const grid = document.getElementById('fp-cal-grid');
+  let html = '';
+
+  // Prev month filler
+  for (let i = 0; i < firstDay; i++) {
+    html += `<div class="text-center text-zinc-700 text-sm py-2">${prevDays - firstDay + 1 + i}</div>`;
+  }
+
+  for (let d = 1; d <= daysInMonth; d++) {
+    const ds = `${fpCalYear}-${String(fpCalMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const isToday = ds === today;
+    const isSelected = ds === fpSelectedDate;
+    const hasPlan = planDates.has(ds);
+    const planCount = plans.filter(p => p.date === ds).length;
+    const isPast = ds < today;
+
+    let cls = 'relative text-center text-sm py-2 rounded-xl cursor-pointer transition-colors ';
+    if (isSelected) cls += 'bg-emerald-600 text-white font-bold ';
+    else if (isToday) cls += 'bg-violet-700 text-white font-semibold ';
+    else if (isPast) cls += 'text-zinc-600 ';
+    else cls += 'hover:bg-zinc-800 text-zinc-300 ';
+
+    const dot = hasPlan ? `<span class="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full ${isSelected?'bg-white':'bg-emerald-400'}"></span>` : '';
+    const badge = hasPlan && planCount > 0 ? `<span class="absolute top-0.5 right-0.5 text-xs leading-none ${isSelected?'text-emerald-200':'text-emerald-400'} font-bold">${planCount}</span>` : '';
+
+    html += `<div class="${cls}" onclick="fpSelectDate('${ds}')">${d}${dot}${badge}</div>`;
+  }
+
+  // Fill remaining
+  const total = firstDay + daysInMonth;
+  const remaining = total % 7 === 0 ? 0 : 7 - (total % 7);
+  for (let i = 1; i <= remaining; i++) {
+    html += `<div class="text-center text-zinc-700 text-sm py-2">${i}</div>`;
+  }
+
+  grid.innerHTML = html;
+}
+
+function fpSelectDate(ds) {
+  fpSelectedDate = ds;
+  renderFpCalendar();
+  renderFpDayPlans(ds);
+
+  const d = new Date(ds + 'T12:00:00');
+  const today = localDateStr();
+  const label = ds === today
+    ? 'Today'
+    : d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+  document.getElementById('fp-selected-label').textContent = label;
+  document.getElementById('fp-add-selected-btn').classList.remove('hidden');
+}
+
+function renderFpDayPlans(ds) {
+  const plans = (data.futurePlans || []).filter(p => p.date === ds);
+  const container = document.getElementById('fp-day-plans');
+  if (!plans.length) {
+    container.innerHTML = `<p class="text-zinc-500 text-sm py-6 text-center">No plans for this date. <button onclick="openFuturePlanModalForDate()" class="text-emerald-400 hover:underline">Add one</button></p>`;
+    return;
+  }
+  container.innerHTML = plans.map(p => `
+    <div class="flex items-center gap-4 bg-zinc-800 rounded-2xl p-4">
+      <div class="font-mono text-xl font-bold text-emerald-400 w-12 shrink-0">${p.hours}h</div>
+      <div class="flex-1 min-w-0">
+        <p class="font-medium truncate">${esc(p.activity)}</p>
+        <div class="flex items-center gap-2 mt-1 flex-wrap">
+          <span class="text-xs px-2 py-0.5 rounded-full" style="background:${catColor(p.category)}22;color:${catColor(p.category)}">${esc(p.category)}</span>
+          <span class="text-xs text-emerald-300 truncate">${esc(p.impact||'')}</span>
+        </div>
+      </div>
+      <div class="flex gap-1 shrink-0">
+        <button onclick="moveFpToToday('${p.id}')" class="text-zinc-500 hover:text-emerald-400 p-1.5 transition-colors" title="Move to today's plan"><i class="fas fa-calendar-day text-xs"></i></button>
+        <button onclick="editFuturePlan('${p.id}')" class="text-zinc-500 hover:text-violet-400 p-1.5 transition-colors" title="Edit"><i class="fas fa-pen text-xs"></i></button>
+        <button onclick="deleteFuturePlan('${p.id}')" class="text-zinc-500 hover:text-red-400 p-1.5 transition-colors" title="Delete"><i class="fas fa-trash text-xs"></i></button>
+      </div>
+    </div>`).join('');
+}
+
+function renderFuturePlansTab() {
+  if (!data.futurePlans) data.futurePlans = [];
+  renderFpCalendar();
+
+  // Re-render day plans if a date is selected
+  if (fpSelectedDate) renderFpDayPlans(fpSelectedDate);
+
+  // All upcoming plans
+  const today = localDateStr();
+  const upcoming = data.futurePlans.filter(p => p.date >= today).sort((a,b) => a.date.localeCompare(b.date));
+  const container = document.getElementById('fp-all-plans');
+  if (!upcoming.length) {
+    container.innerHTML = `<p class="text-zinc-500 text-sm py-6 text-center">No upcoming plans. Use "Add Future Plan" to schedule activities.</p>`;
+    return;
+  }
+  // Group by date
+  const byDate = {};
+  upcoming.forEach(p => { if (!byDate[p.date]) byDate[p.date] = []; byDate[p.date].push(p); });
+  container.innerHTML = Object.entries(byDate).map(([date, plans]) => {
+    const d = new Date(date + 'T12:00:00');
+    const isToday = date === today;
+    const tomorrow = (() => { const t = new Date(); t.setDate(t.getDate()+1); return localDateStr(t); })();
+    const isTmr = date === tomorrow;
+    const lbl = isToday ? 'Today' : isTmr ? 'Tomorrow' : d.toLocaleDateString('en-US', {weekday:'long', month:'short', day:'numeric'});
+    const totalH = plans.reduce((s,p)=>s+p.hours,0);
+    return `<div class="mb-4">
+      <div class="flex items-center gap-3 mb-2">
+        <span class="text-sm font-semibold ${isToday?'text-violet-400':isTmr?'text-indigo-400':'text-zinc-300'}">${lbl}</span>
+        <span class="text-xs text-zinc-500">${totalH.toFixed(1)}h planned</span>
+        <div class="flex-1 h-px bg-zinc-800"></div>
+      </div>
+      ${plans.map(p => `
+        <div class="flex items-center gap-4 bg-zinc-800 rounded-2xl p-3 mb-2">
+          <div class="font-mono text-lg font-bold text-emerald-400 w-12 shrink-0">${p.hours}h</div>
+          <div class="flex-1 min-w-0">
+            <p class="font-medium text-sm truncate">${esc(p.activity)}</p>
+            <span class="text-xs px-2 py-0.5 rounded-full" style="background:${catColor(p.category)}22;color:${catColor(p.category)}">${esc(p.category)}</span>
+          </div>
+          <div class="flex gap-1 shrink-0">
+            <button onclick="moveFpToToday('${p.id}')" class="text-zinc-500 hover:text-emerald-400 p-1.5 transition-colors" title="Move to today's plan"><i class="fas fa-calendar-day text-xs"></i></button>
+            <button onclick="editFuturePlan('${p.id}')" class="text-zinc-500 hover:text-violet-400 p-1.5 transition-colors" title="Edit"><i class="fas fa-pen text-xs"></i></button>
+            <button onclick="deleteFuturePlan('${p.id}')" class="text-zinc-500 hover:text-red-400 p-1.5 transition-colors" title="Delete"><i class="fas fa-trash text-xs"></i></button>
+          </div>
+        </div>`).join('')}
+    </div>`;
+  }).join('');
+}
+
+// ─── Reset ────────────────────────────────────────────────────
+function resetAllData(){
+  if(!confirm('Clear ALL data permanently? Cannot be undone.'))return;
+  localStorage.removeItem('lynx_v5');localStorage.removeItem('lynx_v4');localStorage.removeItem('lynx_v6');
+  data={logs:[],tasks:[],tomorrowPlans:[],futurePlans:[],goals:[...DEFAULT_GOALS],weekGoal:40,submissions:[],badges:[],weeklyPointsHistory:[],planEvents:[],recurringTasks:[]};
+  document.getElementById('week-goal-input').value=40;
+  showToast('🗑️ All data cleared.');renderAll();
+}
+
+// ─── Live Points Widget ───────────────────────────────────────
+function renderLivePoints(){
+  const el=document.getElementById('live-points-display');if(!el)return;
+  const wk=getWeekKey();
+  const {pts,breakdown}=calcWeekPoints(wk);
+  const tier=getAllowanceTier(pts);
+  el.innerHTML=renderPointsPanel(pts,breakdown,tier);
+}
+
+// ─── Badges Display ───────────────────────────────────────────
+function renderBadges(){
+  const el=document.getElementById('badges-display');
+  const cnt=document.getElementById('badge-count');
+  if(!el)return;
+  const earned=data.badges||[];
+  if(cnt) cnt.textContent=`(${earned.length}/${BADGE_DEFS.length})`;
+  if(!earned.length){
+    el.innerHTML=`<div class="col-span-2 text-zinc-500 text-sm py-4 text-center">No badges yet — start logging to earn them!</div>`;
+    return;
+  }
+  el.innerHTML=BADGE_DEFS.map(def=>{
+    const b=earned.find(e=>e.id===def.id);
+    if(!b)return`<div class="bg-zinc-800 rounded-2xl p-3 flex items-center gap-3 opacity-30"><span class="text-2xl grayscale">${def.emoji}</span><div><div class="text-xs font-medium text-zinc-500">${def.name}</div><div class="text-xs text-zinc-600">${def.desc}</div></div></div>`;
+    const wkStr=b.weekKey?` · ${b.weekKey}`:'';
+    return`<div class="bg-zinc-800 rounded-2xl p-3 flex items-center gap-3 border border-zinc-700"><span class="text-2xl">${def.emoji}</span><div><div class="text-xs font-semibold text-zinc-200">${def.name}</div><div class="text-xs text-zinc-500">${def.desc}</div></div></div>`;
+  }).join('');
+}
+
+// ─── Points & Badges Tab ──────────────────────────────────────
+function renderPointsBadgesTab(){
+  const wk=getWeekKey();
+  const {pts,breakdown}=calcWeekPoints(wk);
+  const tier=getAllowanceTier(pts);
+
+  // Live score
+  const liveEl=document.getElementById('pb-live-points');
+  if(liveEl) liveEl.innerHTML=renderPointsPanel(pts,breakdown,tier);
+
+  // Allowance tiers table
+  const tiersEl=document.getElementById('pb-tiers');
+  if(tiersEl){
+    tiersEl.innerHTML=ALLOWANCE_TIERS.slice().reverse().map(t=>{
+      const isCurrent=pts>=t.min&&(t===ALLOWANCE_TIERS[0]||pts<ALLOWANCE_TIERS[ALLOWANCE_TIERS.indexOf(t)-1]?.min||ALLOWANCE_TIERS.indexOf(t)===0);
+      const active=getAllowanceTier(pts).min===t.min;
+      return `<div class="flex items-center justify-between rounded-2xl px-4 py-3 ${active?'bg-emerald-950 border border-emerald-800':'bg-zinc-800'}">
+        <div class="flex items-center gap-3">
+          ${active?'<i class="fas fa-arrow-right text-emerald-400 text-xs"></i>':'<span class="w-3"></span>'}
+          <span class="text-sm font-medium ${active?'text-emerald-300':'text-zinc-400'}">${t.label} pts</span>
+        </div>
+        <div class="text-right">
+          <span class="font-bold ${active?'text-emerald-400':'text-zinc-300'}">${t.weekly>0?'$'+t.weekly.toFixed(2):'$0'}</span>
+          ${t.pct!==null?`<span class="text-xs text-zinc-500 ml-2">${t.pct>0?'+'+t.pct+'% bonus':'base'}</span>`:'<span class="text-xs text-red-500 ml-2">no allowance</span>'}
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  // Points guide
+  const guideEl=document.getElementById('pb-guide');
+  if(guideEl){
+    const rows=[
+      {label:'Log an unplanned activity',          pts:PTS.LOG_UNPLANNED,  color:'text-violet-400'},
+      {label:'Create a Today plan item',            pts:PTS.PLAN_TODAY,     color:'text-blue-400'},
+      {label:'Create a Tomorrow plan item',         pts:PTS.PLAN_TOMORROW,  color:'text-indigo-400'},
+      {label:'Create a Future plan item',           pts:PTS.PLAN_FUTURE,    color:'text-sky-400'},
+      {label:'Complete a planned task',             pts:PTS.COMPLETE_PLANNED,color:'text-emerald-400'},
+      {label:'Perfect day (all tasks done)',         pts:PTS.PERFECT_DAY,    color:'text-yellow-400'},
+      {label:'First log before 8am (5 days)',       pts:PTS.EARLY_BIRD,     color:'text-orange-400'},
+      {label:'Hit weekly hour target',              pts:PTS.WEEKLY_TARGET,  color:'text-emerald-400'},
+      {label:'7-day logging streak',                pts:PTS.STREAK_7,       color:'text-red-400'},
+    ];
+    const cats=[
+      {label:'Career',    mul:8},
+      {label:'Learning',  mul:7},
+      {label:'Fitness',   mul:6},
+      {label:'Finance',   mul:6},
+      {label:'Personal/Family', mul:5},
+      {label:'On Phone',  mul:0},
+    ];
+    guideEl.innerHTML=`
+      <p class="text-xs text-zinc-500 uppercase tracking-widest mb-2">Action Points</p>
+      ${rows.map(r=>`
+        <div class="flex items-center justify-between py-2 border-b border-zinc-800">
+          <span class="text-sm text-zinc-300">${r.label}</span>
+          <span class="font-mono font-bold ${r.color} shrink-0 ml-3">+${r.pts}</span>
+        </div>`).join('')}
+      <p class="text-xs text-zinc-500 uppercase tracking-widest mt-4 mb-2">Category Multiplier (per hour)</p>
+      ${cats.map(c=>`
+        <div class="flex items-center justify-between py-2 border-b border-zinc-800">
+          <span class="text-sm text-zinc-300">${c.label}</span>
+          <span class="font-mono font-bold ${c.mul>0?'text-emerald-400':'text-zinc-600'} shrink-0 ml-3">${c.mul>0?'+'+c.mul+' pts/hr':'0 — not rewarded'}</span>
+        </div>`).join('')}`;
+  }
+
+  // Weekly history
+  const histEl=document.getElementById('pb-history');
+  if(histEl){
+    const hist=(data.weeklyPointsHistory||[]).slice().reverse();
+    if(!hist.length){
+      histEl.innerHTML=`<p class="text-zinc-500 text-sm py-4 text-center">No submitted weeks yet.</p>`;
+    } else {
+      histEl.innerHTML=hist.map(w=>{
+        const t=getAllowanceTier(w.pts);
+        const bar=Math.round(Math.min(w.pts/1000*100,100));
+        return `<div class="bg-zinc-800 rounded-2xl px-4 py-3">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs text-zinc-500">${w.weekKey}</span>
+            <div class="flex items-center gap-3">
+              <span class="text-sm font-bold ${w.pts>=850?'text-yellow-400':w.pts>=300?'text-emerald-400':'text-red-400'}">${w.pts} pts</span>
+              <span class="text-sm font-semibold text-zinc-200">${t.weekly>0?'$'+t.weekly.toFixed(2):'$0'}</span>
+            </div>
+          </div>
+          <div class="h-1.5 bg-zinc-700 rounded-full overflow-hidden">
+            <div class="h-full rounded-full ${w.pts>=850?'bg-yellow-400':w.pts>=300?'bg-emerald-400':'bg-red-800'}" style="width:${bar}%"></div>
+          </div>
+          <div class="flex justify-between mt-1">
+            <span class="text-xs text-zinc-600">${w.totalHrs?w.totalHrs.toFixed(1)+'h logged':''}</span>
+            <span class="text-xs ${w.hitTarget?'text-emerald-600':'text-zinc-600'}">${w.hitTarget?'✓ target hit':'target missed'}</span>
+          </div>
+        </div>`;
+      }).join('');
+    }
+  }
+
+  // Badges grid
+  const badgesEl=document.getElementById('pb-badges');
+  const cntEl=document.getElementById('pb-badge-count');
+  if(!badgesEl)return;
+  const earned=data.badges||[];
+  if(cntEl) cntEl.textContent=`(${earned.length} / ${BADGE_DEFS.length} earned)`;
+  badgesEl.innerHTML=BADGE_DEFS.map(def=>{
+    const b=earned.find(e=>e.id===def.id);
+    if(b){
+      const dt=new Date(b.earnedAt).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+      return `<div class="bg-zinc-800 border border-zinc-600 rounded-3xl p-5 flex flex-col items-center text-center gap-2 relative">
+        <span class="text-4xl">${def.emoji}</span>
+        <div class="font-semibold text-sm text-zinc-100">${def.name}</div>
+        <div class="text-xs text-zinc-400">${def.desc}</div>
+        <div class="text-xs text-emerald-600 mt-1">Earned ${dt}</div>
+        <div class="absolute top-3 right-3 w-2 h-2 rounded-full bg-emerald-400"></div>
+      </div>`;
+    } else {
+      return `<div class="bg-zinc-900 border border-zinc-800 rounded-3xl p-5 flex flex-col items-center text-center gap-2 opacity-40">
+        <span class="text-4xl grayscale">${def.emoji}</span>
+        <div class="font-semibold text-sm text-zinc-500">${def.name}</div>
+        <div class="text-xs text-zinc-600">${def.desc}</div>
+        <div class="text-xs text-zinc-700 mt-1">Not yet earned</div>
+      </div>`;
+    }
+  }).join('');
+}
+
+function updateStreak(){
+  let streak = 0;
+  const today = new Date();
+  for(let i = 0; i < 30; i++){
+    const d = localDateStr(new Date(today.getTime() - i * 86400000));
+    if(data.logs.some(l => l.date === d)) streak++;
+    else break;
+  }
+  const el = document.getElementById('streak-count');
+  if(el){
+    el.innerHTML = `<span class="text-2xl font-bold">${streak}</span> day${streak === 1 ? '' : 's'} streak <i class="fas fa-fire text-orange-400"></i>`;
+  }
+}
+
+function renderAll(){
+  renderDate();
+  initEntryDate();
+  updateTodayHeading();
+  renderTodayLogs();
+  renderPlannedToday();
+  renderTomorrowPlans();
+  renderGoalsQuickPreview();
+  renderWeekSummary();
+  renderSubmitBanner();
+  renderLivePoints();
+  renderBadges();
+  renderPointsSummary();
+  if(typeof updateStreak==='function')updateStreak();
+  if (activeTab === 2) renderAnalytics();
+  if (activeTab === 3) renderHistory();
+  if (activeTab === 4) renderImprovedCalendar();
+  if (activeTab === 5) renderPointsBadgesTab();
+  if (activeTab === 6) renderGoals();
+  if (activeTab === 7) renderRecurringList();
+}
+// ─── Recurring Tasks Engine ───────────────────────────────────
+const DAY_NAMES = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+function toggleRecDay(btn, day){
+  btn.classList.toggle('active-day');
+  if(btn.classList.contains('active-day')){
+    btn.className=btn.className.replace('border-zinc-700 bg-zinc-800 text-zinc-400','border-emerald-600 bg-emerald-900 text-emerald-300');
+  } else {
+    btn.className=btn.className.replace('border-emerald-600 bg-emerald-900 text-emerald-300','border-zinc-700 bg-zinc-800 text-zinc-400');
+  }
+}
+function setDayBtns(days){
+  document.querySelectorAll('.rec-day-btn').forEach(b=>{
+    const on=days.includes(b.dataset.day);
+    b.classList.toggle('active-day',on);
+    if(on){b.className=b.className.replace('border-zinc-700 bg-zinc-800 text-zinc-400','border-emerald-600 bg-emerald-900 text-emerald-300').replace('border-zinc-700 bg-zinc-800 text-zinc-400','border-emerald-600 bg-emerald-900 text-emerald-300');}
+    else{b.className=`rec-day-btn px-3 py-1.5 rounded-xl text-xs border border-zinc-700 bg-zinc-800 text-zinc-400 transition-colors`;}
+  });
+}
+function setAllDays(){ setDayBtns(['Mon','Tue','Wed','Thu','Fri','Sat','Sun']); }
+function setWeekdays(){ setDayBtns(['Mon','Tue','Wed','Thu','Fri']); }
+function clearDays(){ setDayBtns([]); }
+
+function getSelectedDays(){
+  return [...document.querySelectorAll('.rec-day-btn.active-day')].map(b=>b.dataset.day);
+}
+
+function addRecurring(){
+  const title=document.getElementById('rec-title')?.value.trim();
+  const hours=parseFloat(document.getElementById('rec-hours')?.value)||1;
+  const category=document.getElementById('rec-category')?.value||'Career';
+  const impact=document.getElementById('rec-impact')?.value.trim();
+  const days=getSelectedDays();
+  if(!title){showToast('⚠️ Enter a task name.');return;}
+  if(!days.length){showToast('⚠️ Select at least one day.');return;}
+  if(!data.recurringTasks)data.recurringTasks=[];
+  data.recurringTasks.push({id:uid(),title,hours,category,impact:impact||CAT_IMPACT_HINTS[category]||'',days,createdAt:localDateStr()});
+  document.getElementById('rec-title').value='';
+  document.getElementById('rec-impact').value='';
+  clearDays();
+  saveData();
+  renderRecurringList();
+  showToast(`🔁 "${title.slice(0,30)}" added as recurring`);
+}
+
+function deleteRecurring(id){
+  if(!confirm('Remove this recurring task?'))return;
+  data.recurringTasks=(data.recurringTasks||[]).filter(r=>r.id!==id);
+  saveData(); renderRecurringList();
+  showToast('Recurring task removed.');
+}
+
+function isRecurringToday(r){
+  const today=DAY_NAMES[new Date().getDay()];
+  return (r.days||[]).includes(today);
+}
+
+function applyRecurringToToday(){
+  if(!data.recurringTasks||!data.recurringTasks.length){showToast('No recurring tasks set up yet.');return;}
+  const todayRec=data.recurringTasks.filter(isRecurringToday);
+  if(!todayRec.length){showToast('No recurring tasks scheduled for today.');return;}
+  // Avoid duplicates already in today's plan
+  let added=0;
+  todayRec.forEach(r=>{
+    const alreadyIn=data.tasks.some(t=>t.task===r.title&&!t.completed);
+    if(!alreadyIn){
+      data.tasks.push({id:uid(),task:r.title,hours:r.hours,category:r.category,impact:r.impact,completed:false,_recurring:true});
+      recordPlanEvent('today');
+      added++;
+    }
+  });
+  saveData();
+  showToast(added>0?`📋 Added ${added} recurring task${added>1?'s':''} to today`:'All recurring tasks already in today\'s plan');
+  if(added>0)switchTab(0);
+}
+
+// Auto-apply recurring tasks on load if not already applied today
+function autoApplyRecurring(){
+  if(!data.recurringTasks||!data.recurringTasks.length)return;
+  const lastApplied=localStorage.getItem('lynx_rec_applied');
+  const today=localDateStr();
+  if(lastApplied===today)return; // already applied today
+  const todayRec=data.recurringTasks.filter(isRecurringToday);
+  let added=0;
+  todayRec.forEach(r=>{
+    const alreadyIn=data.tasks.some(t=>t.task===r.title&&!t.completed);
+    if(!alreadyIn){
+      data.tasks.push({id:uid(),task:r.title,hours:r.hours,category:r.category,impact:r.impact,completed:false,_recurring:true});
+      added++;
+    }
+  });
+  if(added>0){localStorage.setItem('lynx_rec_applied',today);saveData();}
+  else{localStorage.setItem('lynx_rec_applied',today);}
+}
+
+function renderRecurringList(){
+  const container=document.getElementById('recurring-list');if(!container)return;
+  const tasks=data.recurringTasks||[];
+  if(!tasks.length){
+    container.innerHTML=`<div class="text-center py-10 text-zinc-500 text-sm">No recurring tasks yet.<br>Add one below and it'll appear automatically in Today's Plan.</div>`;
+    return;
+  }
+  const today=DAY_NAMES[new Date().getDay()];
+  container.innerHTML=tasks.map(r=>{
+    const col=CAT_COLORS[r.category]||'#71717a';
+    const isToday=r.days.includes(today);
+    const dayBadges=DAY_NAMES.slice(1).concat('Sun').map(d=>`<span class="px-1.5 py-0.5 rounded text-xs ${r.days.includes(d)?'text-emerald-400 bg-emerald-950 border border-emerald-800':'text-zinc-700'}">${d}</span>`).join('');
+    return `<div class="card bg-zinc-900 rounded-2xl p-4 border ${isToday?'border-emerald-800':'border-zinc-800'}">
+      <div class="flex items-start gap-3">
+        <div class="w-1 self-stretch rounded-full shrink-0" style="background:${col}"></div>
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center gap-2 mb-1">
+            <span class="font-medium text-sm">${esc(r.title)}</span>
+            ${isToday?'<span class="text-xs px-2 py-0.5 bg-emerald-900 text-emerald-400 rounded-full border border-emerald-800">Today ✓</span>':''}
+          </div>
+          <div class="flex items-center gap-2 mb-2 flex-wrap">
+            <span class="text-xs px-2 py-0.5 rounded-full" style="background:${col}22;color:${col}">${esc(r.category)}</span>
+            <span class="text-xs text-zinc-500">${r.hours}h</span>
+            ${r.impact?`<span class="text-xs text-zinc-500 truncate max-w-48">→ ${esc(r.impact)}</span>`:''}
+          </div>
+          <div class="flex gap-1 flex-wrap">${dayBadges}</div>
+        </div>
+        <button onclick="deleteRecurring('${r.id}')" class="text-zinc-600 hover:text-red-400 p-1.5 transition-colors shrink-0"><i class="fas fa-trash text-xs"></i></button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ─── Goals quick preview on Today sidebar ────────────────────
+function renderGoalsQuickPreview(){
+  const cnt=document.getElementById('goals-quick-count');
+  const prev=document.getElementById('goals-quick-preview');
+  if(!cnt||!prev)return;
+  const goals=data.goals||[];
+  cnt.textContent=`${goals.length} goal${goals.length!==1?'s':''}`;
+  if(!goals.length){prev.innerHTML=`<p class="text-xs text-zinc-600">None yet — <button onclick="switchTab(6)" class="text-violet-400 hover:underline">add your first</button></p>`;return;}
+  prev.innerHTML=goals.slice(0,3).map(g=>`<div class="flex items-start gap-2"><i class="fas fa-crosshairs text-violet-500 text-xs mt-0.5 shrink-0"></i><span class="text-xs text-zinc-400 leading-snug truncate">${esc(g)}</span></div>`).join('')
+    +(goals.length>3?`<button onclick="switchTab(6)" class="text-xs text-zinc-500 hover:text-violet-400 mt-1">+${goals.length-3} more →</button>`:'');
+}
+
+// ─── Render Goals (full tab) ─────────────────────────────────
+// (overrides any existing renderGoals so we keep one definition)
+
+// ─── Points: Actual vs Planned ───────────────────────────────
+function calcPlannedPoints(){
+  // Points that WOULD be earned if all planned tasks were completed
+  const tasks=data.tasks||[];
+  let pts=0;
+  tasks.forEach(t=>{
+    const cat=normalizeCat(t.category);
+    pts+=PTS.COMPLETE_PLANNED;                    // +10 for completing
+    pts+=(t.hours||0)*(CAT_PTS_PER_HR[cat]??5); // hours × rate
+  });
+  return Math.round(pts);
+}
+
+function renderPointsSummary(){
+  const wk=getWeekKey();
+  const {pts:actual}=calcWeekPoints(wk);
+  const planned=calcPlannedPoints();
+  const combined=actual+planned;
+  const tier=getAllowanceTier(actual);
+  const tierCombined=getAllowanceTier(combined);
+
+  const el=document.getElementById('pts-actual');
+  const elP=document.getElementById('pts-planned');
+  const elT=document.getElementById('pts-tier-label');
+  if(el)el.textContent=actual;
+  if(elP)elP.textContent=planned;
+  if(elT){
+    if(tier.weekly>0)elT.textContent=`$${tier.weekly.toFixed(0)}/wk (${tier.label} pts)`;
+    else if(combined>=300)elT.textContent=`Complete plans → reach $${tierCombined.weekly.toFixed(0)}/wk`;
+    else elT.textContent=`${300-actual} more pts needed for allowance`;
+    elT.className=`font-medium text-xs ${tier.weekly>0?'text-emerald-400':combined>=300?'text-amber-400':'text-zinc-500'}`;
+  }
+}
+
+// ─── Render All ───────────────────────────────────────────────
+// renderAll defined above — duplicate removed
+
+// ─── Boot ─────────────────────────────────────────────────────
+window.onload=()=>{ loadData(); autoApplyRecurring(); switchTab(0); setMode('log'); updateFutureImpactHint(); };
+</script>
+
+<style>
+.v6-panel{margin:12px;padding:16px;border:1px solid #ddd;border-radius:12px}
+.v6-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+</style>
+
+<div class="v6-panel">
+<h2>LynxTrack v6 Planning Center</h2>
+<div class="v6-grid">
+<div><h3>Hierarchy</h3><p>Goals → Projects → Milestones → Tasks</p></div>
+<div><h3>Weekly Review</h3><p>Wins, Challenges, Lessons, Next Week Focus</p></div>
+<div><h3>Productivity</h3><p>Streaks, Recurring Tasks, Time Blocking</p></div>
+<div><h3>Recovery</h3><p>Backup & Restore</p></div>
+</div>
+<button onclick="exportLynxBackup()">Export Backup</button>
+<input type="file" id="restoreFile" />
+<button onclick="restoreLynxBackup()">Restore Backup</button>
+</div>
+
+<script>
+function exportLynxBackup(){
+ const data={};
+ for(let i=0;i<localStorage.length;i++){
+   const k=localStorage.key(i);
+   data[k]=localStorage.getItem(k);
+ }
+ const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+ const a=document.createElement('a');
+ a.href=URL.createObjectURL(blob);
+ a.download='LynxTrack_v6_Backup.json';
+ a.click();
+}
+function restoreLynxBackup(){
+ const f=document.getElementById('restoreFile').files[0];
+ if(!f) return alert('Select a backup file first');
+ const r=new FileReader();
+ r.onload=e=>{
+   const data=JSON.parse(e.target.result);
+   Object.keys(data).forEach(k=>localStorage.setItem(k,data[k]));
+   alert('Backup restored. Reload page.');
+ };
+ r.readAsText(f);
+}
+</script>
+
+
+<!-- ── PWA: Service Worker + Install Prompt ── -->
+<script>
+// ── Service Worker Registration ──────────────────────────────
+if ('serviceWorker' in navigator) {
+  const swCode = `
+const CACHE = 'lynxtrack-v1';
+const ASSETS = [
+  'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap',
+  'https://cdn.tailwindcss.com',
+  'https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js',
+  'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css'
+];
+self.addEventListener('install', e => {
+  e.waitUntil(
+    caches.open(CACHE).then(c => {
+      return Promise.allSettled(ASSETS.map(a => c.add(a).catch(() => {})));
+    }).then(() => self.skipWaiting())
+  );
+});
+self.addEventListener('activate', e => {
+  e.waitUntil(
+    caches.keys().then(keys =>
+      Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
+    ).then(() => self.clients.claim())
+  );
+});
+self.addEventListener('fetch', e => {
+  if (e.request.method !== 'GET') return;
+  e.respondWith(
+    caches.match(e.request).then(cached => {
+      if (cached) return cached;
+      return fetch(e.request).then(res => {
+        if (res && res.status === 200 && res.type === 'basic') {
+          const clone = res.clone();
+          caches.open(CACHE).then(c => c.put(e.request, clone));
+        }
+        return res;
+      }).catch(() => cached);
+    })
+  );
+});
+`;
+  const blob = new Blob([swCode], { type: 'application/javascript' });
+  const swUrl = URL.createObjectURL(blob);
+  navigator.serviceWorker.register(swUrl)
+    .then(() => console.log('[LynxTrack] Service worker registered'))
+    .catch(e => console.warn('[LynxTrack] SW registration skipped:', e.message));
+}
+
+// ── Install Prompt (Add to Home Screen banner) ───────────────
+let deferredPrompt = null;
+const installBanner = document.createElement('div');
+installBanner.id = 'lt-install-banner';
+installBanner.style.cssText = `
+  display:none; position:fixed; bottom:1.5rem; left:50%; transform:translateX(-50%);
+  background:#18181b; border:1px solid #3f3f46; border-radius:1rem;
+  padding:.75rem 1.25rem; z-index:9999; align-items:center; gap:.75rem;
+  white-space:nowrap; box-shadow:0 4px 24px rgba(0,0,0,.5);
+  font-family:Inter,system-ui,sans-serif; font-size:.875rem; color:#f4f4f5;
+`;
+installBanner.innerHTML = `
+  <span>🐾 Install LynxTrack</span>
+  <button id="lt-install-yes" style="background:#7c3aed;color:white;border:none;padding:.4rem .9rem;border-radius:.5rem;cursor:pointer;font-size:.8rem;font-weight:600">Add to Home Screen</button>
+  <button id="lt-install-no" style="background:none;border:none;color:#71717a;cursor:pointer;font-size:1rem;padding:0 .25rem">✕</button>
+`;
+document.body.appendChild(installBanner);
+
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferredPrompt = e;
+  installBanner.style.display = 'flex';
+});
+
+document.getElementById('lt-install-yes').addEventListener('click', () => {
+  installBanner.style.display = 'none';
+  if (deferredPrompt) {
+    deferredPrompt.prompt();
+    deferredPrompt.userChoice.then(() => { deferredPrompt = null; });
+  }
+});
+document.getElementById('lt-install-no').addEventListener('click', () => {
+  installBanner.style.display = 'none';
+});
+
+window.addEventListener('appinstalled', () => {
+  installBanner.style.display = 'none';
+  deferredPrompt = null;
+  console.log('[LynxTrack] App installed');
+});
+</script>
+
+</body>
+</html>
