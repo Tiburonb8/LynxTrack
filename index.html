@@ -193,6 +193,45 @@
   .tab-content.tab-exit-left  { transform: translateX(-40px); opacity: 0; pointer-events:none; }
   .tab-content.tab-exit-right { transform: translateX(40px);  opacity: 0; pointer-events:none; }
 
+  
+  /* ── Sticky Sliding Header ── */
+  .app-header {
+    position: sticky; top: 0; z-index: 300;
+    background: #09090b;
+    border-bottom: 1px solid #18181b;
+    padding: 0 1.25rem;
+    display: flex; align-items: center; justify-content: space-between;
+    min-height: 52px;
+    overflow: hidden;
+  }
+  .app-header-left {
+    display: flex; align-items: center; gap: 10px; flex-shrink: 0;
+  }
+  .app-header-logo {
+    width: 32px; height: 32px; background: #6d28d9; border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px; flex-shrink: 0;
+  }
+  .app-header-title { font-size: 1rem; font-weight: 700; white-space: nowrap; }
+  .app-header-title span { color: #a78bfa; }
+  /* Scrolling right section */
+  .app-header-right {
+    display: flex; align-items: center; gap: 8px;
+    overflow-x: auto; scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    padding: 8px 0;
+    flex-shrink: 1;
+    mask-image: linear-gradient(to right, transparent 0%, black 5%, black 95%, transparent 100%);
+    -webkit-mask-image: linear-gradient(to right, transparent 0%, black 5%, black 95%, transparent 100%);
+  }
+  .app-header-right::-webkit-scrollbar { display: none; }
+  .app-header-right > * { flex-shrink: 0; }
+  /* Hide subtitle on mobile */
+  @media (max-width: 640px) {
+    .app-header-subtitle { display: none; }
+    .app-header-title { font-size: .9rem; }
+  }
+
   body { font-family: 'Inter', system-ui, sans-serif; }
   .card { transition: transform 0.3s cubic-bezier(0.4,0,0.2,1), box-shadow 0.3s cubic-bezier(0.4,0,0.2,1); }
   .card:hover { transform: translateY(-4px); box-shadow: 0 20px 25px -5px rgb(0 0 0/.15),0 8px 10px -6px rgb(0 0 0/.1); }
@@ -427,29 +466,28 @@
   </div>
 </div>
 
-<div class="max-w-6xl mx-auto p-6">
+<div class="max-w-6xl mx-auto px-4 pt-2 pb-6">
 
   <!-- Header -->
-<div class="flex items-center justify-between mb-8">
-  <div class="flex items-center gap-3">
-    <div class="w-10 h-10 bg-violet-700 rounded-2xl flex items-center justify-center text-xl">🐾</div>
+<div class="app-header">
+  <div class="app-header-left">
+    <div class="app-header-logo">🐾</div>
     <div>
-      <h1 class="text-3xl font-bold tracking-tight">LynxTrack <span class="text-violet-400">v6.1</span></h1>
-      <p class="text-zinc-400 text-sm">Learn. Grow. Pounce.</p>
+      <div class="app-header-title">LynxTrack <span>v7</span></div>
+      <div class="app-header-subtitle" style="font-size:.7rem;color:#52525b">Learn. Grow. Pounce.</div>
     </div>
   </div>
-  <div class="flex items-center gap-4">
-    <!-- 🔥 STREAK (this was missing) -->
-    <div id="streak-display" class="flex items-center gap-2 bg-zinc-900 px-5 py-2 rounded-3xl cursor-pointer hover:bg-zinc-800 transition-colors">
-      <i class="fas fa-fire text-orange-400"></i>
-      <span id="streak-count" class="font-semibold text-orange-400">0 day streak</span>
+  <div class="app-header-right">
+    <div id="streak-display" class="flex items-center gap-1.5 bg-zinc-900 px-3 py-1.5 rounded-2xl cursor-pointer hover:bg-zinc-800 transition-colors">
+      <i class="fas fa-fire text-orange-400" style="font-size:.8rem"></i>
+      <span id="streak-count" class="font-semibold text-orange-400 text-xs">0 day streak</span>
     </div>
-    <div id="current-date" class="text-sm text-zinc-400"></div>
-    <button id="submit-btn" onclick="openSubmitModal()" class="px-4 py-2 text-xs bg-emerald-900 hover:bg-emerald-800 text-emerald-400 rounded-xl flex items-center gap-2">
-      <i class="fas fa-paper-plane"></i> <span id="submit-btn-label">Submit Log</span>
+    <div id="current-date" class="text-xs text-zinc-500 px-1"></div>
+    <button id="submit-btn" onclick="openSubmitModal()" class="px-3 py-1.5 text-xs bg-emerald-900 hover:bg-emerald-800 text-emerald-400 rounded-xl flex items-center gap-1.5">
+      <i class="fas fa-paper-plane" style="font-size:.75rem"></i> <span id="submit-btn-label">Submit Log</span>
     </button>
-    <button onclick="resetAllData()" class="px-4 py-2 text-xs bg-zinc-900 hover:bg-red-950 text-red-400 rounded-xl flex items-center gap-2">
-      <i class="fas fa-trash"></i> Clear All
+    <button onclick="resetAllData()" class="px-3 py-1.5 text-xs bg-zinc-900 hover:bg-red-950 text-red-400 rounded-xl flex items-center gap-1.5">
+      <i class="fas fa-trash" style="font-size:.75rem"></i> Clear All
     </button>
   </div>
 </div></div><!-- /tabs-bar-wrapper -->
@@ -763,11 +801,25 @@
 
   <!-- ════════════════ HISTORY TAB ════════════════ -->
   <div id="tab-content-3" class="tab-content hidden">
-    <div class="flex items-center justify-between mb-4">
-      <h2 class="text-xl font-semibold">All Activity History</h2>
-      <input id="history-search" type="text" placeholder="Search…"
-        class="bg-zinc-900 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 w-52"
+    <!-- Day navigator -->
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;gap:10px">
+      <button onclick="histNavDay(-1)" style="background:#27272a;border:none;color:#f4f4f5;padding:8px 14px;border-radius:12px;cursor:pointer;font-size:.85rem;display:flex;align-items:center;gap:6px">
+        <i class="fas fa-chevron-left"></i>
+      </button>
+      <div style="flex:1;text-align:center">
+        <div id="hist-day-label" style="font-size:1rem;font-weight:600;color:#f4f4f5"></div>
+        <div id="hist-day-stats" style="font-size:.75rem;color:#71717a;margin-top:2px"></div>
+      </div>
+      <button onclick="histNavDay(1)" id="hist-next-btn" style="background:#27272a;border:none;color:#f4f4f5;padding:8px 14px;border-radius:12px;cursor:pointer;font-size:.85rem">
+        <i class="fas fa-chevron-right"></i>
+      </button>
+    </div>
+    <!-- Search (collapses to icon on mobile) -->
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
+      <input id="history-search" type="text" placeholder="Search all history…"
+        style="flex:1;background:#18181b;border:1px solid #27272a;border-radius:12px;padding:8px 14px;font-size:.875rem;color:#f4f4f5;font-family:inherit"
         oninput="renderHistory()">
+      <button onclick="histNavToday()" style="background:#18181b;border:1px solid #27272a;color:#a78bfa;padding:8px 12px;border-radius:12px;cursor:pointer;font-size:.75rem;white-space:nowrap">Today</button>
     </div>
     <div id="history" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
   </div>
@@ -1285,7 +1337,10 @@ function renderTodayLogs(){
   }
   container.innerHTML=dateLogs.map(log=>`
     <div class="flex items-center gap-4 bg-zinc-800 rounded-2xl p-4">
-      <div class="font-mono text-2xl font-bold text-emerald-400 w-14 shrink-0">${log.hours}h</div>
+      <div class="shrink-0 text-center w-14">
+        <div class="font-mono text-2xl font-bold text-emerald-400">${log.hours}h</div>
+        <div class="text-xs text-violet-400 font-semibold">+${calcPts(log.hours,log.category)}pts</div>
+      </div>
       <div class="flex-1 min-w-0">
         <p class="font-medium truncate">${esc(log.activity)}</p>
         <div class="flex items-center gap-2 mt-1 flex-wrap">
@@ -1582,25 +1637,77 @@ function deleteLog(id){
   saveData(); showToast('🗑️ Entry deleted.');
 }
 
+const CAT_RATES={Career:8,Learning:7,Fitness:5,Working:6,'Personal/Family':4,Volunteering:6,'Me Time':3};
+function calcPts(hours,category){ return Math.round((hours||0)*(CAT_RATES[category]||5)); }
+// ── History day navigation ────────────────────────────────────
+var _histDate = localDateStr(); // currently viewed date in history
+
+function histNavDay(delta){
+  var d = new Date(_histDate + 'T12:00:00');
+  d.setDate(d.getDate() + delta);
+  var newStr = d.toISOString().slice(0,10);
+  // Don't go into the future
+  if(newStr > localDateStr()) return;
+  _histDate = newStr;
+  renderHistory();
+}
+function histNavToday(){
+  _histDate = localDateStr();
+  renderHistory();
+}
+
 function renderHistory(){
   const container=document.getElementById('history');if(!container)return;
   const q=(document.getElementById('history-search')?.value||'').toLowerCase();
-  const filtered=q
-    ?data.logs.filter(l=>l.activity.toLowerCase().includes(q)||(l.futureBenefit||'').toLowerCase().includes(q))
-    :data.logs;
+
+  // Update next-day button (disabled if on today)
+  var nextBtn = document.getElementById('hist-next-btn');
+  if(nextBtn) nextBtn.style.opacity = (_histDate >= localDateStr()) ? '0.3' : '1';
+
+  // Day label
+  var labelEl = document.getElementById('hist-day-label');
+  var statsEl = document.getElementById('hist-day-stats');
+  if(labelEl){
+    var d = new Date(_histDate + 'T12:00:00');
+    var isToday = _histDate === localDateStr();
+    var isYesterday = _histDate === (()=>{ var y=new Date(); y.setDate(y.getDate()-1); return y.toISOString().slice(0,10); })();
+    var dayNames = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+    var monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    var label = isToday ? 'Today' : isYesterday ? 'Yesterday' : dayNames[d.getDay()]+', '+monthNames[d.getMonth()]+' '+d.getDate();
+    if(!isToday && !isYesterday) label += ' '+d.getFullYear();
+    labelEl.textContent = label;
+  }
+
+  // If search query, search all history regardless of date
+  var filtered;
+  if(q){
+    filtered = data.logs.filter(l=>l.activity.toLowerCase().includes(q)||(l.futureBenefit||'').toLowerCase().includes(q));
+  } else {
+    filtered = data.logs.filter(l=>l.date===_histDate);
+  }
+
+  // Day stats
+  if(statsEl && !q){
+    var dayHrs = filtered.reduce(function(s,l){return s+(l.hours||0);},0);
+    var dayPts = filtered.reduce(function(s,l){return s+calcPts(l.hours,l.category);},0);
+    statsEl.textContent = filtered.length ? dayHrs.toFixed(1)+'h · '+dayPts+' pts · '+filtered.length+' activit'+(filtered.length===1?'y':'ies') : 'No activity logged';
+  } else if(statsEl) {
+    statsEl.textContent = filtered.length + ' result'+(filtered.length===1?'':'s')+' across all history';
+  }
+
   container.innerHTML=filtered.length
     ?filtered.map(log=>`
       <div class="bg-zinc-900 rounded-3xl p-5">
         <div class="flex justify-between text-xs text-zinc-500 mb-2">
-          <span>${log.date}</span>
+          <span>${q ? log.date : ''}</span>
           <div class="flex items-center gap-2">
             <span class="px-2 py-0.5 rounded-full" style="background:${catColor(log.category)}22;color:${catColor(log.category)}">${esc(log.category||'')}</span>
             <span class="font-mono">${log.hours}h</span>
+            <span class="font-semibold text-violet-400">+${calcPts(log.hours,log.category)}pts</span>
           </div>
         </div>
         <div class="font-medium">${esc(log.activity)}</div>
         <div class="text-xs text-emerald-300 mt-2">${esc(log.futureBenefit||'')}</div>
-        <!-- Re-use actions -->
         <div class="flex items-center gap-2 mt-3 flex-wrap">
           <button onclick="openHistModal('${log.id}')"
             class="plan-action-btn text-violet-300 border-violet-800 hover:bg-violet-950">
@@ -1612,7 +1719,7 @@ function renderHistory(){
           </button>
         </div>
       </div>`).join('')
-    :`<p class="col-span-full text-center py-16 text-zinc-500">${q?'No matching entries.':'History appears here once you log activities.'}</p>`;
+    :`<p class="col-span-full text-center py-16 text-zinc-500">${q?'No matching entries.':_histDate===localDateStr()?'Nothing logged today yet.':'Nothing logged on this day.'}</p>`;
 }
 
 // ─── Analytics ────────────────────────────────────────────────
@@ -1737,10 +1844,10 @@ function renderCategoryChart(wl){
 }
 function renderTopActivities(wl){
   const map={};
-  wl.forEach(l=>{const k=l.activity.trim().toLowerCase();map[k]={display:l.activity,hours:(map[k]?.hours||0)+l.hours};});
+  wl.forEach(l=>{const k=l.activity.trim().toLowerCase();map[k]={display:l.activity,hours:(map[k]?.hours||0)+l.hours,category:l.category};});
   const sorted=Object.values(map).sort((a,b)=>b.hours-a.hours).slice(0,5);
   document.getElementById('top-activities').innerHTML=sorted.length
-    ?sorted.map(({display,hours})=>`<div class="flex justify-between bg-zinc-800 rounded-2xl px-5 py-3"><div class="truncate mr-4">${esc(display)}</div><div class="font-mono text-emerald-400 shrink-0">${hours.toFixed(1)}h</div></div>`).join('')
+    ?sorted.map(({display,hours,category})=>`<div class="flex justify-between bg-zinc-800 rounded-2xl px-5 py-3 items-center"><div class="truncate mr-4">${esc(display)}</div><div class="flex items-center gap-2 shrink-0"><span class="font-mono text-emerald-400">${hours.toFixed(1)}h</span><span class="text-xs text-violet-400 font-semibold">+${calcPts(hours,category)}pts</span></div></div>`).join('')
     :`<p class="text-zinc-500 text-sm">Log activities to see top ones.</p>`;
 }
 function renderFutureThemes(wl){
@@ -2864,6 +2971,20 @@ window.onload=function(){
   updateFutureImpactHint();
   autoMoveTomorrowPlans();
   scheduleMidnightCheck();
+  // History tab swipe for day navigation
+  var histWrapper = document.getElementById('tab-content-3');
+  if(histWrapper){
+    var _hsx=0,_hsy=0;
+    histWrapper.addEventListener('touchstart',function(e){_hsx=e.touches[0].clientX;_hsy=e.touches[0].clientY;},{passive:true});
+    histWrapper.addEventListener('touchend',function(e){
+      var dx=e.changedTouches[0].clientX-_hsx;
+      var dy=e.changedTouches[0].clientY-_hsy;
+      // Only if more horizontal than vertical AND active on history tab
+      if(_activeTab===3&&Math.abs(dx)>40&&Math.abs(dx)>Math.abs(dy)*1.2){
+        histNavDay(dx<0?-1:1);
+      }
+    },{passive:true});
+  }
   // Swipe gesture support
   var wrapper = document.getElementById('tab-contents-wrapper');
   if(wrapper){
