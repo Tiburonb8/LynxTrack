@@ -826,20 +826,19 @@
 
 <!-- TAB 4: IMPROVED FUTURE PLANS CALENDAR -->
 <div id="tab-content-4" class="tab-content hidden">
-  <div class="card bg-zinc-900 rounded-3xl p-6">
-    <div class="flex items-center justify-between mb-6">
-      <h2 class="text-2xl font-semibold flex items-center gap-3">
-        <i class="fas fa-calendar-days text-emerald-400"></i> 
-        Future Plans Calendar
+  <div class="card bg-zinc-900 rounded-3xl p-3 md:p-6" style="overflow-x:auto">
+    <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+      <h2 class="text-lg font-semibold flex items-center gap-2">
+        <i class="fas fa-calendar-days text-emerald-400"></i>Future Plans
       </h2>
-      <div class="flex items-center gap-4">
+      <div class="flex items-center gap-2 flex-wrap">
         <button onclick="calendarPrevMonth()" 
-                class="px-6 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-2xl text-sm font-medium">← Previous</button>
-        <span id="calendar-month-year" class="text-lg font-semibold px-6"></span>
+                class="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 rounded-xl text-sm">← Prev</button>
+        <span id="calendar-month-year" class="text-base font-semibold px-2 min-w-32 text-center"></span>
         <button onclick="calendarNextMonth()" 
-                class="px-6 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-2xl text-sm font-medium">Next →</button>
+                class="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 rounded-xl text-sm">Next →</button>
         <button onclick="calendarGoToday()" 
-                class="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-2xl text-sm font-medium">Today</button>
+                class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 rounded-xl text-sm">Today</button>
       </div>
     </div>
 
@@ -1327,6 +1326,16 @@ function deleteLog(id){
   data.logs=data.logs.filter(l=>l.id!==id);
   saveData(); showToast('🗑️ Entry deleted.');
 }
+
+function moveLogToPlanned(id){
+  var log = data.logs.find(function(l){return l.id===id;});
+  if(!log) return;
+  if(!confirm('Move "'+log.activity+'" back to Today\'s Plan?')) return;
+  data.tasks.push({id:uid(),task:log.activity,hours:log.hours,category:log.category,impact:log.futureBenefit||'',completed:false,_movedFromLog:true});
+  data.logs = data.logs.filter(function(l){return l.id!==id;});
+  showToast('↩ Moved to Today\'s Plan.');
+  saveData();
+}
 function renderTodayLogs(){
   const container=document.getElementById('today-logs');
   const selDate=getEntryDate(),today=localDateStr();
@@ -1348,8 +1357,11 @@ function renderTodayLogs(){
           <span class="text-xs text-emerald-300 truncate">${esc(log.futureBenefit)}</span>
         </div>
       </div>
-      <button onclick="openEditModal('log','${log.id}')" class="text-zinc-500 hover:text-violet-400 p-2 shrink-0 transition-colors" title="Edit"><i class="fas fa-pen text-xs"></i></button>
-      <button onclick="deleteLog('${log.id}')" class="text-zinc-600 hover:text-red-400 p-2 shrink-0 transition-colors" title="Delete"><i class="fas fa-trash"></i></button>
+      <div class="flex flex-col gap-1 shrink-0">
+        <button onclick="moveLogToPlanned('${log.id}')" class="text-zinc-500 hover:text-sky-400 p-1.5 transition-colors" title="Move to Planned"><i class="fas fa-arrow-left text-xs"></i></button>
+        <button onclick="openEditModal('log','${log.id}')" class="text-zinc-500 hover:text-violet-400 p-1.5 transition-colors" title="Edit"><i class="fas fa-pen text-xs"></i></button>
+        <button onclick="deleteLog('${log.id}')" class="text-zinc-600 hover:text-red-400 p-1.5 transition-colors" title="Delete"><i class="fas fa-trash text-xs"></i></button>
+      </div>
     </div>`).join('');
 }
 
@@ -2208,7 +2220,7 @@ async function askClaude(impactId,activityId,hoursId,btnId){
 }
 
 // ─── Edit Modal ───────────────────────────────────────────────
-let editContext = null; // { type: 'log'|'task'|'tmr', id }
+var editContext = null; // { type: 'log'|'task'|'tmr', id }
 
 function openEditModal(type, id) {
   let item;
@@ -3006,23 +3018,6 @@ window.onload=function(){
 };
 </script>
 
-<style>
-.v6-panel{margin:12px;padding:16px;border:1px solid #ddd;border-radius:12px}
-.v6-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
-</style>
-
-<div class="v6-panel">
-<h2>LynxTrack v6 Planning Center</h2>
-<div class="v6-grid">
-<div><h3>Hierarchy</h3><p>Goals → Projects → Milestones → Tasks</p></div>
-<div><h3>Weekly Review</h3><p>Wins, Challenges, Lessons, Next Week Focus</p></div>
-<div><h3>Productivity</h3><p>Streaks, Recurring Tasks, Time Blocking</p></div>
-<div><h3>Recovery</h3><p>Backup & Restore</p></div>
-</div>
-<button onclick="exportLynxBackup()">Export Backup</button>
-<input type="file" id="restoreFile" />
-<button onclick="restoreLynxBackup()">Restore Backup</button>
-</div>
 
 <script>
 function exportLynxBackup(){
@@ -3188,8 +3183,7 @@ if ('serviceWorker' in navigator) {
     '  if(e.request.method!=="GET"||u.includes("googleapis.com")||u.includes("gstatic.com/firebasejs")||u.includes("firestore")||u.includes("identitytoolkit")||u.includes("securetoken")) return;',
     '  e.respondWith(fetch(e.request).catch(()=>caches.match(e.request)));',
     '});'
-  ].join('
-');
+  ].join('\n');
   var blob = new Blob([swCode],{type:'application/javascript'});
   navigator.serviceWorker.register(URL.createObjectURL(blob))
     .then(function(){console.log('[LynxTrack] SW ready');})
