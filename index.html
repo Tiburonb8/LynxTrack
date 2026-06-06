@@ -175,23 +175,30 @@
     overflow: hidden;
   }
   .tab-content {
-    display: block !important;
-    position: absolute;
-    top: 0; left: 0; right: 0;
-    opacity: 0;
-    pointer-events: none;
-    transform: translateX(40px);
-    transition: opacity .22s ease, transform .22s ease;
-    min-height: 200px;
+    display: none;
   }
   .tab-content.tab-visible {
-    opacity: 1;
-    pointer-events: auto;
-    transform: translateX(0);
-    position: relative;
+    display: block;
+    animation: tabSlideIn .22s ease forwards;
   }
-  .tab-content.tab-exit-left  { transform: translateX(-40px); opacity: 0; pointer-events:none; }
-  .tab-content.tab-exit-right { transform: translateX(40px);  opacity: 0; pointer-events:none; }
+  .tab-content.tab-animating-out {
+    display: block;
+    animation: tabSlideOut .18s ease forwards;
+    pointer-events: none;
+  }
+  @keyframes tabSlideIn {
+    from { opacity: 0; transform: translateX(30px); }
+    to   { opacity: 1; transform: translateX(0); }
+  }
+  @keyframes tabSlideInLeft {
+    from { opacity: 0; transform: translateX(-30px); }
+    to   { opacity: 1; transform: translateX(0); }
+  }
+  @keyframes tabSlideOut {
+    from { opacity: 1; }
+    to   { opacity: 0; }
+  }
+
 
   
   /* ── Sticky Sliding Header ── */
@@ -1159,27 +1166,28 @@ function switchTab(n,dir){
   var prev=_activeTab; _activeTab=n; activeTab=n;
   // Scroll tab button into view on mobile
   var btn=document.getElementById('tab-'+n);
+  if(!btn && n===8) btn=document.getElementById('tab-parent');
   if(btn) btn.scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'});
   // Update button styles
   document.querySelectorAll('.tabs-bar button').forEach(function(b){b.classList.remove('tab-active','text-white');});
   if(btn){btn.classList.add('tab-active','text-white');}
-  // Direction
+  // Determine slide direction for animation
   var goRight=(dir==='right')||(dir===undefined&&n>prev);
-  // Exit current visible tab
+  // Hide current tab (brief fade-out animation)
   var prevEl=document.querySelector('.tab-content.tab-visible');
-  if(prevEl){
-    prevEl.classList.remove('tab-visible');
-    prevEl.classList.add(goRight?'tab-exit-left':'tab-exit-right');
-    setTimeout(function(){prevEl.classList.remove('tab-exit-left','tab-exit-right');},260);
+  if(prevEl && prevEl!==document.getElementById('tab-content-'+n)){
+    prevEl.classList.add('tab-animating-out');
+    setTimeout(function(){
+      prevEl.classList.remove('tab-visible','tab-animating-out');
+      prevEl.style.display='';
+    }, 180);
   }
-  // Enter new tab
+  // Show new tab with slide-in animation
   var nextEl=document.getElementById('tab-content-'+n);
   if(nextEl){
-    nextEl.style.transform=goRight?'translateX(40px)':'translateX(-40px)';
-    requestAnimationFrame(function(){
-      nextEl.style.transform='';
-      nextEl.classList.add('tab-visible');
-    });
+    // Set animation direction
+    nextEl.style.animationName = goRight ? 'tabSlideIn' : 'tabSlideInLeft';
+    nextEl.classList.add('tab-visible');
   }
   // Render hooks
   if(n===2)renderAnalytics();
@@ -2977,7 +2985,7 @@ function scheduleMidnightCheck(){
 window.onload=function(){
   // Initialize first tab as visible
   var first = document.getElementById('tab-content-0');
-  if(first) first.classList.add('tab-visible');
+  if(first){ first.classList.add('tab-visible'); first.style.animationName='none'; }
   _activeTab = 0;
   setMode('log');
   updateFutureImpactHint();
