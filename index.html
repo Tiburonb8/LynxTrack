@@ -8,121 +8,85 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="LynxTrack">
-<link rel="manifest" href="data:application/json;charset=utf-8,%7B%22name%22%3A%22LynxTrack%22%2C%22short_name%22%3A%22LynxTrack%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%230a0a0f%22%2C%22theme_color%22%3A%22%230a0a0f%22%2C%22orientation%22%3A%22portrait%22%2C%22start_url%22%3A%22.%2F%22%7D">
-<!-- Firebase Compat SDKs (regular scripts, no module isolation) -->
+<link rel="manifest" href="data:application/json;charset=utf-8,%7B%22name%22%3A%22LynxTrack%22%2C%22short_name%22%3A%22LynxTrack%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%230a0a0f%22%2C%22theme_color%22%3A%22%230a0a0f%22%2C%22start_url%22%3A%22.%2F%22%7D">
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 <script>
-  // ── Firebase Config ───────────────────────────────────────────
-  const firebaseConfig = {
-    apiKey: "AIzaSyCrf5ZbpFRGbXr-0jPIzjra86xp0EIgmuw",
-    authDomain: "lynxtrack-7d050.firebaseapp.com",
-    projectId: "lynxtrack-7d050",
-    storageBucket: "lynxtrack-7d050.firebasestorage.app",
-    messagingSenderId: "448796703778",
-    appId: "1:448796703778:web:ca9fbe8d5b58086305de7b"
-  };
-  firebase.initializeApp(firebaseConfig);
-  const _auth = firebase.auth();
-  const _db   = firebase.firestore();
+const firebaseConfig={apiKey:"AIzaSyCrf5ZbpFRGbXr-0jPIzjra86xp0EIgmuw",authDomain:"lynxtrack-7d050.firebaseapp.com",projectId:"lynxtrack-7d050",storageBucket:"lynxtrack-7d050.firebasestorage.app",messagingSenderId:"448796703778",appId:"1:448796703778:web:ca9fbe8d5b58086305de7b"};
+firebase.initializeApp(firebaseConfig);
+const _auth=firebase.auth();
+const _db=firebase.firestore();
+const PARENT1_UID="VK7a9Fx1TjcwHRSEe26nkHu1nHp1";
+const PARENT2_UID="6SfDo657ShMfRmDV9Iont5LBRtA2";
+const SON_UID="4u6vqWeiu1Uu6qXcuCT35MFQHSs2";
+var _currentUser=null,_unsubscribe=null;
 
-  // ── UIDs ─────────────────────────────────────────────────────
-  const PARENT1_UID = "VK7a9Fx1TjcwHRSEe26nkHu1nHp1";
-  const PARENT2_UID = "6SfDo657ShMfRmDV9Iont5LBRtA2";
-  const SON_UID     = "4u6vqWeiu1Uu6qXcuCT35MFQHSs2";
-
-  let _currentUser = null;
-  let _unsubscribe = null;
-
-  // ── Auth state ────────────────────────────────────────────────
-  _auth.onAuthStateChanged(function(user) {
-    if (user) {
-      _currentUser = user;
-      document.getElementById("auth-screen").style.display = "none";
-      document.getElementById("main-app").style.display    = "block";
-      // Always land on Today tab after sign-in
-      setTimeout(function(){
-        if(typeof switchTab==="function") switchTab(0);
-      }, 50);
-      document.getElementById("user-avatar").textContent   = user.displayName ? user.displayName[0].toUpperCase() : "?";
-      document.getElementById("user-name").textContent     = user.displayName || user.email;
-      document.getElementById("user-uid").textContent      = "UID: " + user.uid;
-
-      // Show parent tab for parent accounts
-      var parentTab = document.getElementById("tab-parent");
-      if (parentTab && (user.uid === PARENT1_UID || user.uid === PARENT2_UID)) {
-        parentTab.style.display = "inline-block";
-      }
-
-      // Subscribe to this user s Firestore data
-      if (_unsubscribe) _unsubscribe();
-      _unsubscribe = _db.collection("users").doc(user.uid)
-        .collection("app").doc("data")
-        .onSnapshot(function(snap) {
-          if (snap.exists) {
-            var saved = snap.data();
-            if (saved.logs) saved.logs.forEach(function(l){ if(!l.id) l.id=uid(); });
-            if (saved.tasks) saved.tasks.forEach(function(t){ if(!t.id) t.id=uid(); });
-            if (saved.tomorrowPlans) saved.tomorrowPlans.forEach(function(t){ if(!t.id) t.id=uid(); });
-            data = Object.assign({}, data, saved);
-            if (!data.badges) data.badges=[];
-            if (!data.weeklyPointsHistory) data.weeklyPointsHistory=[];
-            if (!data.planEvents) data.planEvents=[];
-            if (!data.recurringTasks) data.recurringTasks=[];
-          }
-          if(typeof autoApplyRecurring==="function") autoApplyRecurring();
-          if(typeof renderAll==="function") renderAll();
-        });
-
-      // Load son data if parent
-      if (user.uid === PARENT1_UID || user.uid === PARENT2_UID) {
-        loadSonData();
-      }
-
-    } else {
-      _currentUser = null;
-      document.getElementById("auth-screen").style.display = "flex";
-      document.getElementById("main-app").style.display    = "none";
-      if (_unsubscribe) { _unsubscribe(); _unsubscribe = null; }
-    }
-  });
-
-  // ── Sign in / out ─────────────────────────────────────────────
-  function signInWithGoogle() {
-    var btn = document.getElementById("signin-btn");
-    if(btn) btn.textContent = "Signing in...";
-    var provider = new firebase.auth.GoogleAuthProvider();
-    _auth.signInWithPopup(provider).catch(function(e) {
-      if(btn) btn.textContent = "Sign in with Google";
-      if(e.code !== "auth/popup-closed-by-user") alert("Sign-in failed: " + e.message);
-    });
-  }
-
-  function signOutUser() {
-    if(!confirm("Sign out of LynxTrack?")) return;
-    _auth.signOut();
-  }
-
-  // ── Save to Firestore ─────────────────────────────────────────
-  function _saveToFirestore(dataObj) {
-    if (!_currentUser) return;
-    _db.collection("users").doc(_currentUser.uid)
-      .collection("app").doc("data")
-      .set(dataObj)
-      .catch(function(e){ console.error("Save error:", e); });
-  }
-
-  // ── Load son data for parent dashboard ────────────────────────
-  function loadSonData() {
-    _db.collection("users").doc(SON_UID)
-      .collection("app").doc("data")
-      .get().then(function(snap) {
-        if (typeof renderParentDashboard === "function") {
-          renderParentDashboard(snap.exists ? snap.data() : null);
+_auth.onAuthStateChanged(function(user){
+  if(user){
+    _currentUser=user;
+    document.getElementById("auth-screen").style.display="none";
+    document.getElementById("main-app").style.display="block";
+    document.getElementById("user-avatar").textContent=user.displayName?user.displayName[0].toUpperCase():"?";
+    document.getElementById("user-name").textContent=user.displayName||user.email;
+    document.getElementById("user-uid").textContent="UID: "+user.uid;
+    var ptab=document.getElementById("tab-parent");
+    if(ptab&&(user.uid===PARENT1_UID||user.uid===PARENT2_UID))ptab.style.display="inline-block";
+    if(_unsubscribe)_unsubscribe();
+    _unsubscribe=_db.collection("users").doc(user.uid).collection("app").doc("data")
+      .onSnapshot(function(snap){
+        if(snap.exists){
+          var s=snap.data();
+          if(s.logs)s.logs.forEach(function(l){if(!l.id)l.id=uid();});
+          if(s.tasks)s.tasks.forEach(function(t){if(!t.id)t.id=uid();});
+          if(s.tomorrowPlans)s.tomorrowPlans.forEach(function(t){if(!t.id)t.id=uid();});
+          data=Object.assign({},data,s);
+          if(!data.badges)data.badges=[];
+          if(!data.weeklyPointsHistory)data.weeklyPointsHistory=[];
+          if(!data.planEvents)data.planEvents=[];
+          if(!data.recurringTasks)data.recurringTasks=[];
         }
-      }).catch(function(e){ console.error("Son data error:", e); });
+        if(typeof autoApplyRecurring==="function")autoApplyRecurring();
+        if(typeof autoMoveTomorrowPlans==="function")autoMoveTomorrowPlans();
+        if(typeof renderAll==="function")renderAll();
+      });
+    // Always land on Today tab after sign-in
+    setTimeout(function(){if(typeof switchTab==="function")switchTab(0);},100);
+    if(user.uid===PARENT1_UID||user.uid===PARENT2_UID){
+      if(typeof loadSonData==="function")loadSonData();
+    }
+  }else{
+    _currentUser=null;
+    document.getElementById("auth-screen").style.display="flex";
+    document.getElementById("main-app").style.display="none";
+    if(_unsubscribe){_unsubscribe();_unsubscribe=null;}
   }
+});
+
+function signInWithGoogle(){
+  var btn=document.getElementById("signin-btn");
+  if(btn)btn.textContent="Signing in...";
+  var p=new firebase.auth.GoogleAuthProvider();
+  _auth.signInWithPopup(p).catch(function(e){
+    if(btn)btn.textContent="Sign in with Google";
+    if(e.code!=="auth/popup-closed-by-user")alert("Sign-in failed: "+e.message);
+  });
+}
+function signOutUser(){
+  if(!confirm("Sign out of LynxTrack?"))return;
+  _auth.signOut();
+}
+function _saveToFirestore(d){
+  if(!_currentUser)return;
+  _db.collection("users").doc(_currentUser.uid).collection("app").doc("data")
+    .set(d).catch(function(e){console.error("Save error:",e);});
+}
+function loadSonData(){
+  _db.collection("users").doc(SON_UID).collection("app").doc("data")
+    .get().then(function(snap){
+      if(typeof renderParentDashboard==="function")renderParentDashboard(snap.exists?snap.data():null);
+    }).catch(function(e){console.error("Son data error:",e);});
+}
 </script>
 <title>LynxTrack v6.0 Enterprise</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -132,116 +96,28 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <style>
   
-  /* ── PWA Safe Area ── */
-  body { padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); }
-  * { -webkit-tap-highlight-color: transparent; }
-  html { -webkit-text-size-adjust: 100%; }
-  #auth-screen { display:flex; flex-direction:column; align-items:center; justify-content:center;
-    min-height:100vh; background:#09090b; gap:1.5rem; }
-  #main-app { display:none; }
-
-  
-  /* ── Mobile Sliding Tabs ── */
-  .tabs-bar-wrapper {
-    position: sticky; top: 0; z-index: 200;
-    background: #09090b;
-    border-bottom: 1px solid #27272a;
-  }
-  .tabs-bar {
-    display: flex;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
-    scroll-behavior: smooth;
-    gap: 0;
-  }
-  .tabs-bar::-webkit-scrollbar { display: none; }
-  .tabs-bar button {
-    flex: 0 0 auto;
-    white-space: nowrap;
-    padding: 12px 18px;
-    font-size: .875rem;
-    font-weight: 500;
-    color: #71717a;
-    border-bottom: 2px solid transparent;
-    background: none;
-    border-top: none; border-left: none; border-right: none;
-    cursor: pointer;
-    transition: color .15s, border-color .15s;
-  }
-  .tabs-bar button.tab-active {
-    color: #f4f4f5;
-    border-bottom-color: #7c3aed;
-  }
-  /* Tab content slide container */
-  .tab-contents-wrapper {
-    position: relative;
-    overflow: hidden;
-  }
-  .tab-content {
-    display: none;
-  }
-  .tab-content.tab-visible {
-    display: block !important;
-    animation: tabSlideIn .22s ease forwards;
-  }
-  .tab-content.tab-animating-out {
-    display: block;
-    animation: tabSlideOut .18s ease forwards;
-    pointer-events: none;
-  }
-  @keyframes tabSlideIn {
-    from { opacity: 0; transform: translateX(30px); }
-    to   { opacity: 1; transform: translateX(0); }
-  }
-  @keyframes tabSlideInLeft {
-    from { opacity: 0; transform: translateX(-30px); }
-    to   { opacity: 1; transform: translateX(0); }
-  }
-  @keyframes tabSlideOut {
-    from { opacity: 1; }
-    to   { opacity: 0; }
-  }
-
-
-  
-  /* ── Sticky Sliding Header ── */
-  .app-header {
-    position: sticky; top: 0; z-index: 300;
-    background: #09090b;
-    border-bottom: 1px solid #18181b;
-    padding: 0 1.25rem;
-    display: flex; align-items: center; justify-content: space-between;
-    min-height: 52px;
-    overflow: hidden;
-  }
-  .app-header-left {
-    display: flex; align-items: center; gap: 10px; flex-shrink: 0;
-  }
-  .app-header-logo {
-    width: 32px; height: 32px; background: #6d28d9; border-radius: 10px;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 16px; flex-shrink: 0;
-  }
-  .app-header-title { font-size: 1rem; font-weight: 700; white-space: nowrap; }
-  .app-header-title span { color: #a78bfa; }
-  /* Scrolling right section */
-  .app-header-right {
-    display: flex; align-items: center; gap: 8px;
-    overflow-x: auto; scrollbar-width: none;
-    -webkit-overflow-scrolling: touch;
-    padding: 8px 0;
-    flex-shrink: 1;
-    mask-image: linear-gradient(to right, transparent 0%, black 5%, black 95%, transparent 100%);
-    -webkit-mask-image: linear-gradient(to right, transparent 0%, black 5%, black 95%, transparent 100%);
-  }
-  .app-header-right::-webkit-scrollbar { display: none; }
-  .app-header-right > * { flex-shrink: 0; }
-  /* Hide subtitle on mobile */
-  @media (max-width: 640px) {
-    .app-header-subtitle { display: none; }
-    .app-header-title { font-size: .9rem; }
-  }
+  /* ── PWA ── */
+  body{padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom);}
+  *{-webkit-tap-highlight-color:transparent;}
+  html{-webkit-text-size-adjust:100%;}
+  #auth-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;background:#09090b;gap:1.5rem;}
+  #main-app{display:none;}
+  /* ── Sticky header ── */
+  .app-header{position:sticky;top:0;z-index:300;background:#09090b;border-bottom:1px solid #18181b;padding:0 1rem;display:flex;align-items:center;justify-content:space-between;min-height:52px;}
+  .app-header-right{display:flex;align-items:center;gap:8px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;padding:8px 0;mask-image:linear-gradient(to right,transparent 0%,black 5%,black 95%,transparent 100%);-webkit-mask-image:linear-gradient(to right,transparent 0%,black 5%,black 95%,transparent 100%);}
+  .app-header-right::-webkit-scrollbar{display:none;}
+  .app-header-right>*{flex-shrink:0;}
+  /* ── Scrollable tab bar ── */
+  .tabs-bar-wrapper{position:sticky;top:52px;z-index:200;background:#09090b;border-bottom:1px solid #27272a;}
+  .tabs-bar{display:flex;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;scroll-behavior:smooth;}
+  .tabs-bar::-webkit-scrollbar{display:none;}
+  .tabs-bar button{flex:0 0 auto;white-space:nowrap;padding:12px 18px;font-size:.875rem;font-weight:500;color:#71717a;border-bottom:2px solid transparent;background:none;border-top:none;border-left:none;border-right:none;cursor:pointer;transition:color .15s,border-color .15s;}
+  .tabs-bar button.tab-active{color:#f4f4f5;border-bottom-color:#7c3aed;}
+  /* ── Tab content: simple show/hide with animation ── */
+  .tab-content{display:none;}
+  .tab-content.tab-visible{display:block !important;animation:tabIn .2s ease;}
+  @keyframes tabIn{from{opacity:0;transform:translateX(20px);}to{opacity:1;transform:translateX(0);}}
+  @keyframes tabInLeft{from{opacity:0;transform:translateX(-20px);}to{opacity:1;transform:translateX(0);}}
 
   body { font-family: 'Inter', system-ui, sans-serif; }
   .card { transition: transform 0.3s cubic-bezier(0.4,0,0.2,1), box-shadow 0.3s cubic-bezier(0.4,0,0.2,1); }
@@ -269,33 +145,21 @@
 </head>
 <body class="bg-zinc-950 text-zinc-100 min-h-screen">
 
-<!-- ── Auth Screen ── -->
+<!-- Auth Screen -->
 <div id="auth-screen">
   <div style="text-align:center">
     <div style="width:72px;height:72px;background:#6d28d9;border-radius:20px;display:flex;align-items:center;justify-content:center;font-size:36px;margin:0 auto 1rem">🐾</div>
     <h1 style="font-size:2rem;font-weight:700;color:#f4f4f5;margin:0">LynxTrack</h1>
     <p style="color:#71717a;margin:.5rem 0 2rem">Learn. Grow. Pounce.</p>
   </div>
-  <button id="signin-btn" onclick="signInWithGoogle()"
-    style="display:flex;align-items:center;gap:.75rem;background:#fff;color:#1f1f1f;border:none;
-    padding:.875rem 1.75rem;border-radius:12px;font-size:1rem;font-weight:600;cursor:pointer;
-    box-shadow:0 2px 12px rgba(0,0,0,.4)">
-    <svg width="20" height="20" viewBox="0 0 48 48">
-      <path fill="#FFC107" d="M43.6 20H24v8h11.3C33.7 32.7 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3 0 5.8 1.1 7.9 3l5.7-5.7C34.1 6.5 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20c11 0 19.6-8 19.6-20 0-1.3-.1-2.7-.4-4z"/>
-      <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.5 15.1 18.9 12 24 12c3 0 5.8 1.1 7.9 3l5.7-5.7C34.1 6.5 29.3 4 24 4 16.3 4 9.7 8.4 6.3 14.7z"/>
-      <path fill="#4CAF50" d="M24 44c5.2 0 9.9-1.9 13.5-5l-6.2-5.2C29.5 35.5 26.9 36 24 36c-5.2 0-9.7-3.3-11.3-8H6.1C9.4 35.6 16.2 44 24 44z"/>
-      <path fill="#1976D2" d="M43.6 20H24v8h11.3c-.8 2.3-2.3 4.3-4.2 5.8l6.2 5.2C40.9 35.6 44 30.2 44 24c0-1.3-.1-2.7-.4-4z"/>
-    </svg>
+  <button id="signin-btn" onclick="signInWithGoogle()" style="display:flex;align-items:center;gap:.75rem;background:#fff;color:#1f1f1f;border:none;padding:.875rem 1.75rem;border-radius:12px;font-size:1rem;font-weight:600;cursor:pointer;box-shadow:0 2px 12px rgba(0,0,0,.4)">
+    <svg width="20" height="20" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20H24v8h11.3C33.7 32.7 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3 0 5.8 1.1 7.9 3l5.7-5.7C34.1 6.5 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20c11 0 19.6-8 19.6-20 0-1.3-.1-2.7-.4-4z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.5 15.1 18.9 12 24 12c3 0 5.8 1.1 7.9 3l5.7-5.7C34.1 6.5 29.3 4 24 4 16.3 4 9.7 8.4 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-1.9 13.5-5l-6.2-5.2C29.5 35.5 26.9 36 24 36c-5.2 0-9.7-3.3-11.3-8H6.1C9.4 35.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20H24v8h11.3c-.8 2.3-2.3 4.3-4.2 5.8l6.2 5.2C40.9 35.6 44 30.2 44 24c0-1.3-.1-2.7-.4-4z"/></svg>
     Sign in with Google
   </button>
-  <p style="color:#52525b;font-size:.75rem;text-align:center;max-width:260px">
-    Your data is private and synced across all your devices.
-  </p>
+  <p style="color:#52525b;font-size:.75rem;text-align:center;max-width:260px">Your data is private and synced across all your devices.</p>
 </div>
-
-<!-- ── Main App ── -->
+<!-- Main App -->
 <div id="main-app">
-<!-- ── User bar ── -->
 <div style="position:fixed;top:0;right:0;z-index:500;padding:.5rem .75rem">
   <div style="display:flex;align-items:center;gap:.5rem;background:#18181b;border:1px solid #27272a;border-radius:10px;padding:.35rem .6rem;cursor:pointer" onclick="document.getElementById('user-panel').classList.toggle('hidden')">
     <div style="width:28px;height:28px;background:#6d28d9;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.8rem;font-weight:700;color:white" id="user-avatar">?</div>
@@ -477,23 +341,20 @@
   </div>
 </div>
 
-<div class="max-w-6xl mx-auto px-4 pt-2 pb-6">
+<div class="max-w-6xl mx-auto p-6">
 
   <!-- Header -->
 <div class="app-header">
-  <div class="app-header-left">
-    <div class="app-header-logo">🐾</div>
-    <div>
-      <div class="app-header-title">LynxTrack <span>v7</span></div>
-      <div class="app-header-subtitle" style="font-size:.7rem;color:#52525b">Learn. Grow. Pounce.</div>
-    </div>
+  <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+    <div style="width:32px;height:32px;background:#6d28d9;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:16px">🐾</div>
+    <div style="font-size:1rem;font-weight:700">LynxTrack <span style="color:#a78bfa">v7</span></div>
   </div>
   <div class="app-header-right">
-    <div id="streak-display" class="flex items-center gap-1.5 bg-zinc-900 px-3 py-1.5 rounded-2xl cursor-pointer hover:bg-zinc-800 transition-colors">
+    <div id="streak-display" style="display:flex;align-items:center;gap:6px;background:#18181b;padding:5px 10px;border-radius:20px;cursor:pointer">
       <i class="fas fa-fire text-orange-400" style="font-size:.8rem"></i>
-      <span id="streak-count" class="font-semibold text-orange-400 text-xs">0 day streak</span>
+      <span id="streak-count" class="font-semibold text-orange-400" style="font-size:.8rem">0 day streak</span>
     </div>
-    <div id="current-date" class="text-xs text-zinc-500 px-1"></div>
+    <div id="current-date" style="font-size:.75rem;color:#71717a;padding:0 4px"></div>
     <button id="submit-btn" onclick="openSubmitModal()" class="px-3 py-1.5 text-xs bg-emerald-900 hover:bg-emerald-800 text-emerald-400 rounded-xl flex items-center gap-1.5">
       <i class="fas fa-paper-plane" style="font-size:.75rem"></i> <span id="submit-btn-label">Submit Log</span>
     </button>
@@ -501,7 +362,7 @@
       <i class="fas fa-trash" style="font-size:.75rem"></i> Clear All
     </button>
   </div>
-</div></div><!-- /tabs-bar-wrapper -->
+</div>
 
   <div id="submit-banner" class="hidden mb-5"></div>
 
@@ -515,8 +376,8 @@
     <button onclick="switchTab(5)" id="tab-5" class="px-6 py-4 font-medium flex-1 md:flex-none text-zinc-400 hover:text-zinc-200">🏆 Points & Badges</button>
     <button onclick="switchTab(6)" id="tab-6" class="px-6 py-4 font-medium flex-1 md:flex-none text-zinc-400 hover:text-zinc-200">🎯 6-Month Goals</button>
     <button onclick="switchTab(7)" id="tab-7" class="px-6 py-4 font-medium flex-1 md:flex-none text-zinc-400 hover:text-zinc-200">🔁 Recurring</button>
-    <button onclick="switchTab(8)" id="tab-parent" style="display:none" class="px-6 py-4 font-medium flex-1 md:flex-none text-zinc-400 hover:text-zinc-200">👨‍👦 Dashboard</button>
-  </div>
+    <button onclick="switchTab(8)" id="tab-parent" style="display:none" class="tab-btn">👨‍👦 Dashboard</button>
+  </div></div><!-- /tabs-bar-wrapper -->
 
   <!-- ════════════════ TODAY TAB ════════════════ -->
   <div class="tab-contents-wrapper" id="tab-contents-wrapper">
@@ -712,7 +573,7 @@
   </div>
 
   <!-- ════════════════ TOMORROW TAB ════════════════ -->
-  <div id="tab-content-1" class="tab-content">
+  <div id="tab-content-1" class="tab-content hidden">
     <div class="card bg-zinc-900 rounded-3xl p-6 max-w-3xl mx-auto">
       <h2 class="text-2xl font-semibold mb-2 flex items-center gap-3">
         <i class="fas fa-moon text-indigo-400"></i> Tomorrow's Plan
@@ -770,7 +631,7 @@
   </div>
 
   <!-- ════════════════ ANALYTICS TAB ════════════════ -->
-  <div id="tab-content-2" class="tab-content">
+  <div id="tab-content-2" class="tab-content hidden">
     <div class="space-y-6">
       <!-- Row 1: stacked daily + donut -->
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -811,45 +672,36 @@
   </div>
 
   <!-- ════════════════ HISTORY TAB ════════════════ -->
-  <div id="tab-content-3" class="tab-content">
-    <!-- Day navigator -->
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;gap:10px">
-      <button onclick="histNavDay(-1)" style="background:#27272a;border:none;color:#f4f4f5;padding:8px 14px;border-radius:12px;cursor:pointer;font-size:.85rem;display:flex;align-items:center;gap:6px">
-        <i class="fas fa-chevron-left"></i>
-      </button>
+  <div id="tab-content-3" class="tab-content hidden">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+      <button onclick="histNavDay(-1)" style="background:#27272a;border:none;color:#f4f4f5;padding:8px 14px;border-radius:10px;cursor:pointer"><i class="fas fa-chevron-left"></i></button>
       <div style="flex:1;text-align:center">
         <div id="hist-day-label" style="font-size:1rem;font-weight:600;color:#f4f4f5"></div>
         <div id="hist-day-stats" style="font-size:.75rem;color:#71717a;margin-top:2px"></div>
       </div>
-      <button onclick="histNavDay(1)" id="hist-next-btn" style="background:#27272a;border:none;color:#f4f4f5;padding:8px 14px;border-radius:12px;cursor:pointer;font-size:.85rem">
-        <i class="fas fa-chevron-right"></i>
-      </button>
+      <button onclick="histNavDay(1)" id="hist-next-btn" style="background:#27272a;border:none;color:#f4f4f5;padding:8px 14px;border-radius:10px;cursor:pointer"><i class="fas fa-chevron-right"></i></button>
     </div>
-    <!-- Search (collapses to icon on mobile) -->
-    <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
+    <div style="display:flex;gap:8px;margin-bottom:12px">
       <input id="history-search" type="text" placeholder="Search all history…"
-        style="flex:1;background:#18181b;border:1px solid #27272a;border-radius:12px;padding:8px 14px;font-size:.875rem;color:#f4f4f5;font-family:inherit"
+        style="flex:1;background:#18181b;border:1px solid #27272a;border-radius:10px;padding:8px 14px;font-size:.875rem;color:#f4f4f5;font-family:inherit"
         oninput="renderHistory()">
-      <button onclick="histNavToday()" style="background:#18181b;border:1px solid #27272a;color:#a78bfa;padding:8px 12px;border-radius:12px;cursor:pointer;font-size:.75rem;white-space:nowrap">Today</button>
+      <button onclick="histNavToday()" style="background:#18181b;border:1px solid #27272a;color:#a78bfa;padding:8px 12px;border-radius:10px;cursor:pointer;font-size:.75rem">Today</button>
     </div>
     <div id="history" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
   </div>
 
 <!-- TAB 4: IMPROVED FUTURE PLANS CALENDAR -->
-<div id="tab-content-4" class="tab-content">
-  <div class="card bg-zinc-900 rounded-3xl p-3 md:p-6" style="overflow-x:auto">
-    <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
-      <h2 class="text-lg font-semibold flex items-center gap-2">
-        <i class="fas fa-calendar-days text-emerald-400"></i>Future Plans
+<div id="tab-content-4" class="tab-content hidden">
+  <div class="card bg-zinc-900 rounded-3xl p-6">
+    <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;margin-bottom:16px">
+      <h2 style="font-size:1.1rem;font-weight:600;display:flex;align-items:center;gap:8px">
+        <i class="fas fa-calendar-days" style="color:#34d399"></i>Future Plans
       </h2>
-      <div class="flex items-center gap-2 flex-wrap">
-        <button onclick="calendarPrevMonth()" 
-                class="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 rounded-xl text-sm">← Prev</button>
-        <span id="calendar-month-year" class="text-base font-semibold px-2 min-w-32 text-center"></span>
-        <button onclick="calendarNextMonth()" 
-                class="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 rounded-xl text-sm">Next →</button>
-        <button onclick="calendarGoToday()" 
-                class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 rounded-xl text-sm">Today</button>
+      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+        <button onclick="calendarPrevMonth()" style="background:#27272a;border:none;color:#f4f4f5;padding:6px 12px;border-radius:10px;cursor:pointer;font-size:.85rem">← Prev</button>
+        <span id="calendar-month-year" style="font-size:.95rem;font-weight:600;padding:0 8px;min-width:120px;text-align:center"></span>
+        <button onclick="calendarNextMonth()" style="background:#27272a;border:none;color:#f4f4f5;padding:6px 12px;border-radius:10px;cursor:pointer;font-size:.85rem">Next →</button>
+        <button onclick="calendarGoToday()" style="background:#059669;border:none;color:white;padding:6px 12px;border-radius:10px;cursor:pointer;font-size:.85rem">Today</button>
       </div>
     </div>
 
@@ -864,7 +716,7 @@
 </div>
 
   <!-- ════════════════ POINTS & BADGES TAB ════════════════ -->
-  <div id="tab-content-5" class="tab-content">
+  <div id="tab-content-5" class="tab-content hidden">
 
     <!-- Header row -->
     <div class="flex items-center justify-between mb-6">
@@ -938,7 +790,7 @@
   </div>
 
   <!-- ════════════════ 6-MONTH GOALS TAB ════════════════ -->
-  <div id="tab-content-6" class="tab-content">
+  <div id="tab-content-6" class="tab-content hidden">
     <div class="max-w-3xl mx-auto space-y-6">
       <div class="flex items-center justify-between">
         <div>
@@ -974,7 +826,7 @@
   </div>
 
   <!-- ════════════════ RECURRING TASKS TAB ════════════════ -->
-  <div id="tab-content-7" class="tab-content">
+  <div id="tab-content-7" class="tab-content hidden">
     <div class="max-w-3xl mx-auto space-y-6">
       <div class="flex items-center justify-between">
         <div>
@@ -1044,7 +896,7 @@
               <select id="rec-freq" onchange="document.getElementById('rec-on-dates-wrap').classList.toggle('hidden',this.value!=='on')" class="w-full bg-zinc-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
                 <option value="every">Every week</option>
                 <option value="everyother">Every other week</option>
-                <option value="on">On specific dates only</option>
+                <option value="on">Specific dates only</option>
               </select>
             </div>
             <div class="flex-1">
@@ -1053,9 +905,8 @@
             </div>
           </div>
           <div id="rec-on-dates-wrap" class="hidden">
-            <label class="text-xs text-zinc-500 block mb-1">Specific dates (comma-separated, e.g. 2025-06-01, 2025-06-15)</label>
-            <input id="rec-on-dates" type="text" placeholder="YYYY-MM-DD, YYYY-MM-DD…"
-              class="w-full bg-zinc-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 placeholder-zinc-600">
+            <label class="text-xs text-zinc-500 block mb-1">Specific dates (comma-separated YYYY-MM-DD)</label>
+            <input id="rec-on-dates" type="text" placeholder="2025-06-01, 2025-06-15…" class="w-full bg-zinc-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 placeholder-zinc-600">
           </div>
           <button onclick="addRecurring()" class="w-full bg-emerald-600 hover:bg-emerald-500 py-4 rounded-2xl font-semibold text-sm flex items-center justify-center gap-2 transition-colors">
             <i class="fas fa-plus"></i> Add Recurring Task
@@ -1156,10 +1007,10 @@ function loadData(){
   renderAll();
 }
 function saveData(){
-  if(typeof _saveToFirestore==="function" && _currentUser){
+  if(typeof _saveToFirestore==="function"&&_currentUser){
     _saveToFirestore(data);
   } else {
-    try{ localStorage.setItem('lynx_v6',JSON.stringify(data)); }catch(e){ showToast('⚠️ Storage full.'); }
+    try{localStorage.setItem('lynx_v6',JSON.stringify(data));}catch(e){showToast('⚠️ Storage full.');}
   }
   renderAll();
 }
@@ -1168,34 +1019,23 @@ function saveData(){
 var _activeTab=0;
 function switchTab(n,dir){
   var prev=_activeTab; _activeTab=n; activeTab=n;
-  // Scroll tab button into view on mobile
-  var btn=document.getElementById('tab-'+n);
-  if(!btn && n===8) btn=document.getElementById('tab-parent');
-  if(btn) btn.scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'});
-  // Update button styles
+  // Scroll tab button into view
+  var btn=document.getElementById('tab-'+n)||(n===8?document.getElementById('tab-parent'):null);
+  if(btn){btn.scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'});}
+  // Update active button style
   document.querySelectorAll('.tabs-bar button').forEach(function(b){b.classList.remove('tab-active','text-white');});
   if(btn){btn.classList.add('tab-active','text-white');}
-  // Determine slide direction for animation
-  var goRight=(dir==='right')||(dir===undefined&&n>prev);
-  // Hide current tab (brief fade-out animation)
-  var prevEl=document.querySelector('.tab-content.tab-visible');
-  if(prevEl && prevEl!==document.getElementById('tab-content-'+n)){
-    prevEl.classList.add('tab-animating-out');
-    setTimeout(function(){
-      prevEl.classList.remove('tab-visible','tab-animating-out');
-      prevEl.style.display='';
-    }, 180);
+  // Hide current tab
+  var cur=document.querySelector('.tab-content.tab-visible');
+  if(cur){cur.classList.remove('tab-visible');}
+  // Show new tab with animation
+  var next=document.getElementById('tab-content-'+n);
+  if(next){
+    next.style.animationName=(dir==='left'||(dir===undefined&&n<prev))?'tabInLeft':'tabIn';
+    next.classList.add('tab-visible');
   }
-  // Show new tab with slide-in animation
-  var nextEl=document.getElementById('tab-content-'+n);
-  if(nextEl){
-    // Set animation direction
-    nextEl.style.animationName = goRight ? 'tabSlideIn' : 'tabSlideInLeft';
-    nextEl.classList.add('tab-visible');
-  }
-  // Render hooks
   if(n===2)renderAnalytics();
-  if(n===3)renderHistory();
+  if(n===3){_histDate=localDateStr();renderHistory();}
   if(n===4)renderImprovedCalendar();
   if(n===5)renderPointsBadgesTab();
   if(n===6)renderGoals();
@@ -1338,16 +1178,6 @@ function deleteLog(id){
   data.logs=data.logs.filter(l=>l.id!==id);
   saveData(); showToast('🗑️ Entry deleted.');
 }
-
-function moveLogToPlanned(id){
-  var log = data.logs.find(function(l){return l.id===id;});
-  if(!log) return;
-  if(!confirm('Move "'+log.activity+'" back to Today\'s Plan?')) return;
-  data.tasks.push({id:uid(),task:log.activity,hours:log.hours,category:log.category,impact:log.futureBenefit||'',completed:false,_movedFromLog:true});
-  data.logs = data.logs.filter(function(l){return l.id!==id;});
-  showToast('↩ Moved to Today\'s Plan.');
-  saveData();
-}
 function renderTodayLogs(){
   const container=document.getElementById('today-logs');
   const selDate=getEntryDate(),today=localDateStr();
@@ -1358,10 +1188,7 @@ function renderTodayLogs(){
   }
   container.innerHTML=dateLogs.map(log=>`
     <div class="flex items-center gap-4 bg-zinc-800 rounded-2xl p-4">
-      <div class="shrink-0 text-center w-14">
-        <div class="font-mono text-2xl font-bold text-emerald-400">${log.hours}h</div>
-        <div class="text-xs text-violet-400 font-semibold">+${calcPts(log.hours,log.category)}pts</div>
-      </div>
+      <div class="shrink-0 text-center w-14"><div class="font-mono text-2xl font-bold text-emerald-400">${log.hours}h</div><div class="text-xs text-violet-400 font-semibold">+${calcPts(log.hours,log.category)}pts</div></div>
       <div class="flex-1 min-w-0">
         <p class="font-medium truncate">${esc(log.activity)}</p>
         <div class="flex items-center gap-2 mt-1 flex-wrap">
@@ -1369,7 +1196,7 @@ function renderTodayLogs(){
           <span class="text-xs text-emerald-300 truncate">${esc(log.futureBenefit)}</span>
         </div>
       </div>
-      <div class="flex flex-col gap-1 shrink-0">
+      <div class="flex flex-col gap-0.5 shrink-0">
         <button onclick="moveLogToPlanned('${log.id}')" class="text-zinc-500 hover:text-sky-400 p-1.5 transition-colors" title="Move to Planned"><i class="fas fa-arrow-left text-xs"></i></button>
         <button onclick="openEditModal('log','${log.id}')" class="text-zinc-500 hover:text-violet-400 p-1.5 transition-colors" title="Edit"><i class="fas fa-pen text-xs"></i></button>
         <button onclick="deleteLog('${log.id}')" class="text-zinc-600 hover:text-red-400 p-1.5 transition-colors" title="Delete"><i class="fas fa-trash text-xs"></i></button>
@@ -1661,69 +1488,35 @@ function deleteLog(id){
   saveData(); showToast('🗑️ Entry deleted.');
 }
 
-const CAT_RATES={Career:8,Learning:7,Fitness:5,Working:6,'Personal/Family':4,Volunteering:6,'Me Time':3};
-function calcPts(hours,category){ return Math.round((hours||0)*(CAT_RATES[category]||5)); }
-// ── History day navigation ────────────────────────────────────
-var _histDate = localDateStr(); // currently viewed date in history
-
-function histNavDay(delta){
-  var d = new Date(_histDate + 'T12:00:00');
-  d.setDate(d.getDate() + delta);
-  var newStr = d.toISOString().slice(0,10);
-  // Don't go into the future
-  if(newStr > localDateStr()) return;
-  _histDate = newStr;
-  renderHistory();
-}
-function histNavToday(){
-  _histDate = localDateStr();
-  renderHistory();
-}
-
 function renderHistory(){
   const container=document.getElementById('history');if(!container)return;
   const q=(document.getElementById('history-search')?.value||'').toLowerCase();
-
-  // Update next-day button (disabled if on today)
-  var nextBtn = document.getElementById('hist-next-btn');
-  if(nextBtn) nextBtn.style.opacity = (_histDate >= localDateStr()) ? '0.3' : '1';
-
-  // Day label
-  var labelEl = document.getElementById('hist-day-label');
-  var statsEl = document.getElementById('hist-day-stats');
-  if(labelEl){
-    var d = new Date(_histDate + 'T12:00:00');
-    var isToday = _histDate === localDateStr();
-    var isYesterday = _histDate === (()=>{ var y=new Date(); y.setDate(y.getDate()-1); return y.toISOString().slice(0,10); })();
-    var dayNames = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
-    var monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    var label = isToday ? 'Today' : isYesterday ? 'Yesterday' : dayNames[d.getDay()]+', '+monthNames[d.getMonth()]+' '+d.getDate();
-    if(!isToday && !isYesterday) label += ' '+d.getFullYear();
-    labelEl.textContent = label;
+  if(typeof _histDate==='undefined')window._histDate=localDateStr();
+  // Update nav
+  var nextBtn=document.getElementById('hist-next-btn');
+  if(nextBtn)nextBtn.style.opacity=(_histDate>=localDateStr())?'0.3':'1';
+  var labelEl=document.getElementById('hist-day-label');
+  var statsEl=document.getElementById('hist-day-stats');
+  if(labelEl&&!q){
+    var d=new Date(_histDate+'T12:00:00');
+    var isToday=_histDate===localDateStr();
+    var yStr=new Date();yStr.setDate(yStr.getDate()-1);var isYest=_histDate===yStr.toISOString().slice(0,10);
+    var dns=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+    var mns=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    labelEl.textContent=isToday?'Today':isYest?'Yesterday':dns[d.getDay()]+', '+mns[d.getMonth()]+' '+d.getDate()+((!isToday&&!isYest)?' '+d.getFullYear():'');
   }
-
-  // If search query, search all history regardless of date
-  var filtered;
-  if(q){
-    filtered = data.logs.filter(l=>l.activity.toLowerCase().includes(q)||(l.futureBenefit||'').toLowerCase().includes(q));
-  } else {
-    filtered = data.logs.filter(l=>l.date===_histDate);
+  var filtered=q
+    ?data.logs.filter(l=>l.activity.toLowerCase().includes(q)||(l.futureBenefit||'').toLowerCase().includes(q))
+    :data.logs.filter(l=>l.date===_histDate);
+  if(statsEl){
+    if(q){statsEl.textContent=filtered.length+' result'+(filtered.length===1?'':'s');}
+    else{var dh=filtered.reduce(function(s,l){return s+(l.hours||0);},0),dp=filtered.reduce(function(s,l){return s+calcPts(l.hours,l.category);},0);statsEl.textContent=filtered.length?dh.toFixed(1)+'h · '+dp+' pts · '+filtered.length+' activit'+(filtered.length===1?'y':'ies'):'Nothing logged';}
   }
-
-  // Day stats
-  if(statsEl && !q){
-    var dayHrs = filtered.reduce(function(s,l){return s+(l.hours||0);},0);
-    var dayPts = filtered.reduce(function(s,l){return s+calcPts(l.hours,l.category);},0);
-    statsEl.textContent = filtered.length ? dayHrs.toFixed(1)+'h · '+dayPts+' pts · '+filtered.length+' activit'+(filtered.length===1?'y':'ies') : 'No activity logged';
-  } else if(statsEl) {
-    statsEl.textContent = filtered.length + ' result'+(filtered.length===1?'':'s')+' across all history';
-  }
-
   container.innerHTML=filtered.length
     ?filtered.map(log=>`
       <div class="bg-zinc-900 rounded-3xl p-5">
         <div class="flex justify-between text-xs text-zinc-500 mb-2">
-          <span>${q ? log.date : ''}</span>
+          <span>${q?log.date:''}</span>
           <div class="flex items-center gap-2">
             <span class="px-2 py-0.5 rounded-full" style="background:${catColor(log.category)}22;color:${catColor(log.category)}">${esc(log.category||'')}</span>
             <span class="font-mono">${log.hours}h</span>
@@ -1733,17 +1526,11 @@ function renderHistory(){
         <div class="font-medium">${esc(log.activity)}</div>
         <div class="text-xs text-emerald-300 mt-2">${esc(log.futureBenefit||'')}</div>
         <div class="flex items-center gap-2 mt-3 flex-wrap">
-          <button onclick="openHistModal('${log.id}')"
-            class="plan-action-btn text-violet-300 border-violet-800 hover:bg-violet-950">
-            <i class="fas fa-redo" style="font-size:9px"></i> Re-use
-          </button>
-          <button onclick="deleteLog('${log.id}')"
-            class="plan-action-btn text-zinc-500 border-zinc-700 hover:text-red-400 hover:border-red-800">
-            <i class="fas fa-trash" style="font-size:9px"></i> Delete
-          </button>
+          <button onclick="openHistModal('${log.id}')" class="plan-action-btn text-violet-300 border-violet-800 hover:bg-violet-950"><i class="fas fa-redo" style="font-size:9px"></i> Re-use</button>
+          <button onclick="deleteLog('${log.id}')" class="plan-action-btn text-zinc-500 border-zinc-700 hover:text-red-400 hover:border-red-800"><i class="fas fa-trash" style="font-size:9px"></i> Delete</button>
         </div>
       </div>`).join('')
-    :`<p class="col-span-full text-center py-16 text-zinc-500">${q?'No matching entries.':_histDate===localDateStr()?'Nothing logged today yet.':'Nothing logged on this day.'}</p>`;
+    :`<p class="col-span-full text-center py-16 text-zinc-500">${q?'No results.':_histDate===localDateStr()?'Nothing logged today.':'Nothing logged on this day.'}</p>`;
 }
 
 // ─── Analytics ────────────────────────────────────────────────
@@ -2232,7 +2019,7 @@ async function askClaude(impactId,activityId,hoursId,btnId){
 }
 
 // ─── Edit Modal ───────────────────────────────────────────────
-var editContext = null; // { type: 'log'|'task'|'tmr', id }
+let editContext = null; // { type: 'log'|'task'|'tmr', id }
 
 function openEditModal(type, id) {
   let item;
@@ -2776,21 +2563,20 @@ function addRecurring(){
   const category=document.getElementById('rec-category')?.value||'Career';
   const impact=document.getElementById('rec-impact')?.value.trim();
   const days=getSelectedDays();
+  if(!title){showToast('⚠️ Enter a task name.');return;}
+  if(!days.length){showToast('⚠️ Select at least one day.');return;}
+  if(!data.recurringTasks)data.recurringTasks=[];
   const freq=document.getElementById('rec-freq')?.value||'every';
   const endDate=document.getElementById('rec-enddate')?.value||'';
   const onDatesRaw=document.getElementById('rec-on-dates')?.value||'';
   const onDates=onDatesRaw.split(',').map(s=>s.trim()).filter(Boolean);
-  if(!title){showToast('⚠️ Enter a task name.');return;}
-  if(freq!=='on'&&!days.length){showToast('⚠️ Select at least one day.');return;}
   if(freq==='on'&&!onDates.length){showToast('⚠️ Enter at least one date.');return;}
-  if(!data.recurringTasks)data.recurringTasks=[];
   data.recurringTasks.push({id:uid(),title,hours,category,impact:impact||CAT_IMPACT_HINTS[category]||'',days,freq,endDate,onDates,createdAt:localDateStr()});
   document.getElementById('rec-title').value='';
   document.getElementById('rec-impact').value='';
-  document.getElementById('rec-enddate').value='';
-  document.getElementById('rec-on-dates').value='';
-  document.getElementById('rec-freq').value='every';
-  document.getElementById('rec-on-dates-wrap').classList.add('hidden');
+  if(document.getElementById('rec-enddate'))document.getElementById('rec-enddate').value='';
+  if(document.getElementById('rec-on-dates'))document.getElementById('rec-on-dates').value='';
+  if(document.getElementById('rec-freq'))document.getElementById('rec-freq').value='every';
   clearDays();
   saveData();
   renderRecurringList();
@@ -2806,26 +2592,20 @@ function deleteRecurring(id){
 
 function isRecurringToday(r){
   const todayStr=localDateStr();
-  const todayDate=new Date(todayStr+'T12:00:00');
-  // Check end date
-  if(r.endDate&&todayStr>r.endDate) return false;
+  if(r.endDate&&todayStr>r.endDate)return false;
   const freq=r.freq||'every';
-  // "on" mode: specific dates only
-  if(freq==='on') return (r.onDates||[]).includes(todayStr);
-  // Day of week check
+  if(freq==='on')return(r.onDates||[]).includes(todayStr);
   const dayName=DAY_NAMES[new Date().getDay()];
-  if(!(r.days||[]).includes(dayName)) return false;
-  // every-other-week: use createdAt week as reference
+  if(!(r.days||[]).includes(dayName))return false;
   if(freq==='everyother'){
     const created=new Date((r.createdAt||todayStr)+'T12:00:00');
-    const createdDay=created.getDay();
-    const createdMon=new Date(created); createdMon.setDate(created.getDate()-createdDay+(createdDay===0?-6:1));
-    const todayMon=new Date(todayDate); const td=todayDate.getDay(); todayMon.setDate(todayDate.getDate()-td+(td===0?-6:1));
-    const diffMs=todayMon-createdMon;
-    const diffWeeks=Math.round(diffMs/(7*24*60*60*1000));
-    return diffWeeks%2===0;
+    const cd=created.getDay();
+    const cMon=new Date(created);cMon.setDate(created.getDate()-cd+(cd===0?-6:1));
+    const tDate=new Date(todayStr+'T12:00:00');const td=tDate.getDay();
+    const tMon=new Date(tDate);tMon.setDate(tDate.getDate()-td+(td===0?-6:1));
+    return Math.round((tMon-cMon)/(7*24*60*60*1000))%2===0;
   }
-  return true; // every week
+  return true;
 }
 
 function applyRecurringToToday(){
@@ -2890,10 +2670,8 @@ function renderRecurringList(){
             <span class="text-xs px-2 py-0.5 rounded-full" style="background:${col}22;color:${col}">${esc(r.category)}</span>
             <span class="text-xs text-zinc-500">${r.hours}h</span>
             ${r.impact?`<span class="text-xs text-zinc-500 truncate max-w-48">→ ${esc(r.impact)}</span>`:''}
-            ${(r.freq&&r.freq!=='every')?`<span class="text-xs px-2 py-0.5 bg-violet-950 text-violet-400 rounded-full border border-violet-800">${r.freq==='everyother'?'Every other week':'Specific dates'}</span>`:''}
-            ${r.endDate?`<span class="text-xs text-zinc-600">ends ${r.endDate}</span>`:''}
           </div>
-          <div class="flex gap-1 flex-wrap">${r.freq==='on'?(r.onDates||[]).map(d=>`<span class="px-1.5 py-0.5 rounded text-xs text-sky-400 bg-sky-950 border border-sky-900">${d}</span>`).join(''):dayBadges}</div>
+          <div class="flex gap-1 flex-wrap">${dayBadges}</div>
         </div>
         <button onclick="deleteRecurring('${r.id}')" class="text-zinc-600 hover:text-red-400 p-1.5 transition-colors shrink-0"><i class="fas fa-trash text-xs"></i></button>
       </div>
@@ -2954,80 +2732,25 @@ function renderPointsSummary(){
 // renderAll defined above — duplicate removed
 
 // ─── Boot ─────────────────────────────────────────────────────
-
-// ── Auto-move Tomorrow Plans to Today after midnight ──────────
-function autoMoveTomorrowPlans(){
-  var lastMoved = localStorage.getItem('lynx_tmr_moved');
-  var today = localDateStr();
-  if(lastMoved === today) return; // already moved today
-  if(!data.tomorrowPlans || !data.tomorrowPlans.length){ localStorage.setItem('lynx_tmr_moved',today); return; }
-  var moved = 0;
-  data.tomorrowPlans.forEach(function(p){
-    var alreadyIn = data.tasks.some(function(t){ return t.task===p.activity && !t.completed; });
-    if(!alreadyIn){
-      data.tasks.push({id:uid(),task:p.activity,hours:p.hours,category:p.category,impact:p.futureBenefit||'',completed:false,_fromTomorrow:true});
-      moved++;
-    }
-  });
-  data.tomorrowPlans = [];
-  localStorage.setItem('lynx_tmr_moved', today);
-  if(moved>0){
-    saveData();
-    showToast('📅 '+moved+' plan'+(moved>1?'s':'')+' moved from Tomorrow to Today!');
-  }
-}
-// Schedule midnight check
-function scheduleMidnightCheck(){
-  var now = new Date();
-  var msToMidnight = new Date(now.getFullYear(),now.getMonth(),now.getDate()+1,0,0,5).getTime() - now.getTime();
-  setTimeout(function(){
-    autoMoveTomorrowPlans();
-    scheduleMidnightCheck(); // reschedule for next midnight
-  }, msToMidnight);
-}
-
 window.onload=function(){
-  // Initialize first tab as visible - use switchTab for consistency
-  // Temporarily suppress animation
-  var first = document.getElementById('tab-content-0');
-  if(first){ first.classList.add('tab-visible'); first.style.animation='none'; }
-  document.querySelectorAll('.tabs-bar button').forEach(function(b){b.classList.remove('tab-active','text-white');});
-  var t0btn = document.getElementById('tab-0');
-  if(t0btn) t0btn.classList.add('tab-active','text-white');
-  _activeTab = 0; activeTab = 0;
+  switchTab(0);
   setMode('log');
   updateFutureImpactHint();
   autoMoveTomorrowPlans();
   scheduleMidnightCheck();
-  // History tab swipe for day navigation
-  var histWrapper = document.getElementById('tab-content-3');
-  if(histWrapper){
-    var _hsx=0,_hsy=0;
-    histWrapper.addEventListener('touchstart',function(e){_hsx=e.touches[0].clientX;_hsy=e.touches[0].clientY;},{passive:true});
-    histWrapper.addEventListener('touchend',function(e){
-      var dx=e.changedTouches[0].clientX-_hsx;
-      var dy=e.changedTouches[0].clientY-_hsy;
-      // Only if more horizontal than vertical AND active on history tab
-      if(_activeTab===3&&Math.abs(dx)>40&&Math.abs(dx)>Math.abs(dy)*1.2){
-        histNavDay(dx<0?-1:1);
-      }
-    },{passive:true});
-  }
-  // Swipe gesture support
-  var wrapper = document.getElementById('tab-contents-wrapper');
+  // Swipe support
+  var wrapper=document.getElementById('tab-contents-wrapper');
   if(wrapper){
-    var _sx=0,_sy=0;
-    wrapper.addEventListener('touchstart',function(e){ _sx=e.touches[0].clientX; _sy=e.touches[0].clientY; },{passive:true});
+    var sx=0,sy=0;
+    wrapper.addEventListener('touchstart',function(e){sx=e.touches[0].clientX;sy=e.touches[0].clientY;},{passive:true});
     wrapper.addEventListener('touchend',function(e){
-      var dx=e.changedTouches[0].clientX-_sx;
-      var dy=e.changedTouches[0].clientY-_sy;
-      if(Math.abs(dx)>50 && Math.abs(dx)>Math.abs(dy)*1.5){
-        var allTabs=[0,1,2,3,4,5,6,7];
-        var parentVisible=document.getElementById('tab-parent')&&document.getElementById('tab-parent').style.display!=='none';
-        if(parentVisible) allTabs.push(8);
-        var cur=allTabs.indexOf(_activeTab);
-        if(dx<0 && cur<allTabs.length-1) switchTab(allTabs[cur+1],'right');
-        else if(dx>0 && cur>0) switchTab(allTabs[cur-1],'left');
+      var dx=e.changedTouches[0].clientX-sx,dy=e.changedTouches[0].clientY-sy;
+      if(Math.abs(dx)>50&&Math.abs(dx)>Math.abs(dy)*1.5){
+        var tabs=[0,1,2,3,4,5,6,7];
+        if(document.getElementById('tab-parent')&&document.getElementById('tab-parent').style.display!=='none')tabs.push(8);
+        var ci=tabs.indexOf(_activeTab);
+        if(dx<0&&ci<tabs.length-1)switchTab(tabs[ci+1],'right');
+        else if(dx>0&&ci>0)switchTab(tabs[ci-1],'left');
       }
     },{passive:true});
   }
@@ -3035,6 +2758,7 @@ window.onload=function(){
 </script>
 
 
+<!-- /tab-contents-wrapper -->
 <script>
 function exportLynxBackup(){
  const data={};
@@ -3061,160 +2785,102 @@ function restoreLynxBackup(){
 }
 </script>
 
-
-  <!-- PARENT DASHBOARD TAB -->
-  <div id="tab-content-8" class="tab-content">
-    <div class="max-w-4xl mx-auto space-y-6">
-      <div class="flex items-center justify-between">
-        <div>
-          <h2 class="text-2xl font-bold flex items-center gap-3">
-            <i class="fas fa-binoculars text-violet-400"></i> Your Son's Activity
-          </h2>
-          <p class="text-zinc-400 text-sm mt-1">Read-only — updates when refreshed</p>
-        </div>
-        <button onclick="loadSonData()" class="px-4 py-2 text-xs bg-zinc-800 hover:bg-zinc-700 rounded-xl text-zinc-300">
-          <i class="fas fa-sync"></i> Refresh
-        </button>
-      </div>
-      <div id="parent-dashboard-content">
-        <p class="text-zinc-500 text-center py-12">Loading...</p>
-      </div>
-    </div>
-  </div>
-
-
-  </div><!-- /tab-contents-wrapper -->
-
-<script>
-// ── renderParentDashboard ────────────────────────────────────
-function renderParentDashboard(sonData) {
-  var el = document.getElementById('parent-dashboard-content');
-  if (!el) return;
-  if (!sonData) {
-    el.innerHTML = '<p class="text-zinc-500 text-center py-12">No data yet. Your son needs to log in and track some activities first.</p>';
-    return;
-  }
-  var logs = sonData.logs || [];
-  var weekGoal = sonData.weekGoal || 40;
-  var CAT_RATES = {Career:8,Learning:7,Fitness:5,Working:6,'Personal/Family':4,Volunteering:6,'Me Time':3};
-  var CAT_COLORS = {Career:'#fb923c',Learning:'#a78bfa',Fitness:'#38bdf8',Working:'#34d399','Personal/Family':'#f472b6',Volunteering:'#4ade80','Me Time':'#fbbf24'};
-
-  // Week key
-  var now = new Date();
-  var day = now.getDay();
-  var diff = now.getDate() - day + (day===0?-6:1);
-  var mon = new Date(now.getFullYear(), now.getMonth(), diff);
-  var wk = mon.toISOString().slice(0,10);
-
-  // Filter this week
-  var weekLogs = logs.filter(function(l){
-    if(!l.date) return false;
-    var d = new Date(l.date + 'T12:00:00');
-    var dd = d.getDay();
-    var dm = new Date(d.getFullYear(), d.getMonth(), d.getDate() - dd + (dd===0?-6:1));
-    return dm.toISOString().slice(0,10) === wk;
-  });
-
-  var weekHrs = weekLogs.reduce(function(s,l){ return s+(l.hours||0); }, 0);
-  var pct = Math.min(100, Math.round((weekHrs/weekGoal)*100));
-  var pts = Math.round(weekLogs.reduce(function(s,l){ return s+(l.hours||0)*(CAT_RATES[l.category]||5); },0));
-
-  // Category breakdown
-  var catMap = {};
-  weekLogs.forEach(function(l){ catMap[l.category]=(catMap[l.category]||0)+(l.hours||0); });
-  var cats = Object.entries(catMap).sort(function(a,b){ return b[1]-a[1]; });
-
-  // Recent logs
-  var recent = logs.slice().sort(function(a,b){ return new Date(b.date)-new Date(a.date); }).slice(0,10);
-
-  var catBars = cats.length ? cats.map(function(c){
-    var cat=c[0], hrs=c[1];
-    var w = weekHrs > 0 ? Math.min(100, Math.round((hrs/weekHrs)*100)) : 0;
-    var col = CAT_COLORS[cat]||'#888';
-    return '<div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">' +
-      '<div style="width:10px;height:10px;border-radius:50%;background:'+col+';flex-shrink:0"></div>' +
-      '<div style="flex:1;font-size:.85rem;color:#d4d4d8">'+cat+'</div>' +
-      '<div style="width:100px;height:4px;background:#3f3f46;border-radius:4px;overflow:hidden">' +
-        '<div style="width:'+w+'%;height:100%;background:'+col+';border-radius:4px"></div></div>' +
-      '<div style="font-size:.8rem;color:#a1a1aa;width:30px;text-align:right">'+hrs.toFixed(1)+'h</div>' +
-      '</div>';
-  }).join('') : '<p style="color:#52525b;font-size:.85rem">No activity this week.</p>';
-
-  var recentRows = recent.length ? recent.map(function(l){
-    var col = CAT_COLORS[l.category]||'#888';
-    return '<div style="display:flex;align-items:start;gap:10px;padding:8px 0;border-bottom:1px solid #27272a">' +
-      '<div style="width:8px;height:8px;border-radius:50%;background:'+col+';margin-top:5px;flex-shrink:0"></div>' +
-      '<div style="flex:1;min-width:0">' +
-        '<div style="font-size:.85rem;color:#e4e4e7;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+(l.activity||'')+'</div>' +
-        '<div style="font-size:.75rem;color:#71717a">'+(l.category||'')+' &middot; '+(l.date||'')+'</div>' +
-      '</div>' +
-      '<div style="font-size:.85rem;color:#a78bfa;flex-shrink:0">'+(l.hours||0)+'h</div>' +
-    '</div>';
-  }).join('') : '<p style="color:#52525b;font-size:.85rem">No activity logged yet.</p>';
-
-  el.innerHTML =
-    '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-bottom:20px">' +
-      '<div style="background:#18181b;border-radius:16px;padding:20px">' +
-        '<div style="color:#71717a;font-size:.8rem;margin-bottom:6px">This Week</div>' +
-        '<div style="font-size:2.2rem;font-weight:700;color:#34d399">'+weekHrs.toFixed(1)+'<span style="font-size:1rem;color:#52525b;font-weight:400"> / '+weekGoal+'h</span></div>' +
-        '<div style="height:6px;background:#27272a;border-radius:6px;margin-top:10px;overflow:hidden">' +
-          '<div style="width:'+pct+'%;height:100%;background:#34d399;border-radius:6px"></div></div>' +
-        '<div style="color:#34d399;font-size:.8rem;margin-top:4px">'+pct+'% of goal</div>' +
-      '</div>' +
-      '<div style="background:#18181b;border-radius:16px;padding:20px">' +
-        '<div style="color:#71717a;font-size:.8rem;margin-bottom:6px">Points This Week</div>' +
-        '<div style="font-size:2.2rem;font-weight:700;color:#a78bfa">'+pts+'</div>' +
-        '<div style="color:#71717a;font-size:.75rem;margin-top:6px">'+(pts>=300?'✅ Allowance earned!':((300-pts)+' pts to allowance'))+'</div>' +
-      '</div>' +
-      '<div style="background:#18181b;border-radius:16px;padding:20px">' +
-        '<div style="color:#71717a;font-size:.8rem;margin-bottom:6px">Activities Logged</div>' +
-        '<div style="font-size:2.2rem;font-weight:700;color:#38bdf8">'+weekLogs.length+'</div>' +
-        '<div style="color:#71717a;font-size:.75rem;margin-top:6px">this week &middot; '+logs.length+' total</div>' +
-      '</div>' +
-    '</div>' +
-    '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px">' +
-      '<div style="background:#18181b;border-radius:16px;padding:20px">' +
-        '<h3 style="font-size:.95rem;font-weight:600;margin:0 0 14px;color:#f4f4f5">Categories This Week</h3>' +
-        catBars +
-      '</div>' +
-      '<div style="background:#18181b;border-radius:16px;padding:20px">' +
-        '<h3 style="font-size:.95rem;font-weight:600;margin:0 0 14px;color:#f4f4f5">Recent Activity</h3>' +
-        recentRows +
-      '</div>' +
-    '</div>';
-}
-
-// Patch switchTab to handle tab 8
-// tab 8 handled natively in switchTab
-</script>
 </div><!-- /main-app -->
 
 <script>
-if ('serviceWorker' in navigator) {
-  var swCode = [
-    'const CACHE="lynxtrack-v3";',
+// ── calcPts ──────────────────────────────────────────────────
+const CAT_RATES={Career:8,Learning:7,Fitness:5,Working:6,'Personal/Family':4,Volunteering:6,'Me Time':3};
+function calcPts(hours,cat){return Math.round((hours||0)*(CAT_RATES[cat]||5));}
+
+// ── Move log entry back to planned ───────────────────────────
+function moveLogToPlanned(id){
+  var log=data.logs.find(function(l){return l.id===id;});
+  if(!log)return;
+  if(!confirm('Move "'+log.activity+'" back to Today\'s Plan?'))return;
+  data.tasks.push({id:uid(),task:log.activity,hours:log.hours,category:log.category,impact:log.futureBenefit||'',completed:false});
+  data.logs=data.logs.filter(function(l){return l.id!==id;});
+  showToast('↩ Moved to Today\'s Plan.');
+  saveData();
+}
+
+// ── Auto-move Tomorrow Plans to Today after midnight ─────────
+function autoMoveTomorrowPlans(){
+  var lastMoved=localStorage.getItem('lynx_tmr_moved');
+  var today=localDateStr();
+  if(lastMoved===today)return;
+  if(!data.tomorrowPlans||!data.tomorrowPlans.length){localStorage.setItem('lynx_tmr_moved',today);return;}
+  var moved=0;
+  data.tomorrowPlans.forEach(function(p){
+    if(!data.tasks.some(function(t){return t.task===p.activity&&!t.completed;})){
+      data.tasks.push({id:uid(),task:p.activity,hours:p.hours,category:p.category,impact:p.futureBenefit||'',completed:false});
+      moved++;
+    }
+  });
+  data.tomorrowPlans=[];
+  localStorage.setItem('lynx_tmr_moved',today);
+  if(moved>0){saveData();showToast('📅 '+moved+' plan'+(moved>1?'s':'')+' moved to Today!');}
+}
+function scheduleMidnightCheck(){
+  var now=new Date();
+  var ms=new Date(now.getFullYear(),now.getMonth(),now.getDate()+1,0,0,5).getTime()-now.getTime();
+  setTimeout(function(){autoMoveTomorrowPlans();scheduleMidnightCheck();},ms);
+}
+
+// ── History day navigation ────────────────────────────────────
+var _histDate=typeof localDateStr==='function'?localDateStr():new Date().toISOString().slice(0,10);
+function histNavDay(d){
+  var dt=new Date(_histDate+'T12:00:00');
+  dt.setDate(dt.getDate()+d);
+  var ns=dt.toISOString().slice(0,10);
+  if(ns>localDateStr())return;
+  _histDate=ns;renderHistory();
+}
+function histNavToday(){_histDate=localDateStr();renderHistory();}
+
+// ── renderParentDashboard ─────────────────────────────────────
+function renderParentDashboard(sonData){
+  var el=document.getElementById('parent-dashboard-content');
+  if(!el)return;
+  if(!sonData){el.innerHTML='<p style="color:#52525b;text-align:center;padding:48px 0">No data yet — your son needs to log some activities first.</p>';return;}
+  var logs=sonData.logs||[];
+  var weekGoal=sonData.weekGoal||40;
+  var CR={Career:8,Learning:7,Fitness:5,Working:6,'Personal/Family':4,Volunteering:6,'Me Time':3};
+  var CC={Career:'#fb923c',Learning:'#a78bfa',Fitness:'#38bdf8',Working:'#34d399','Personal/Family':'#f472b6',Volunteering:'#4ade80','Me Time':'#fbbf24'};
+  var now=new Date(),day=now.getDay();
+  var mon=new Date(now.getFullYear(),now.getMonth(),now.getDate()-day+(day===0?-6:1));
+  var wk=mon.toISOString().slice(0,10);
+  var wl=logs.filter(function(l){if(!l.date)return false;var d=new Date(l.date+'T12:00:00'),dd=d.getDay();return new Date(d.getFullYear(),d.getMonth(),d.getDate()-dd+(dd===0?-6:1)).toISOString().slice(0,10)===wk;});
+  var wh=wl.reduce(function(s,l){return s+(l.hours||0);},0);
+  var pct=Math.min(100,Math.round((wh/weekGoal)*100));
+  var pts=Math.round(wl.reduce(function(s,l){return s+(l.hours||0)*(CR[l.category]||5);},0));
+  var cm={};wl.forEach(function(l){cm[l.category]=(cm[l.category]||0)+(l.hours||0);});
+  var cats=Object.entries(cm).sort(function(a,b){return b[1]-a[1];});
+  var recent=logs.slice().sort(function(a,b){return new Date(b.date)-new Date(a.date);}).slice(0,8);
+  var catBars=cats.length?cats.map(function(c){var col=CC[c[0]]||'#888',w=wh>0?Math.min(100,Math.round((c[1]/wh)*100)):0;
+    return '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px"><div style="width:8px;height:8px;border-radius:50%;background:'+col+';flex-shrink:0"></div><div style="flex:1;font-size:.85rem;color:#d4d4d8">'+c[0]+'</div><div style="width:80px;height:4px;background:#3f3f46;border-radius:4px;overflow:hidden"><div style="width:'+w+'%;height:100%;background:'+col+'"></div></div><div style="font-size:.8rem;color:#a1a1aa;width:28px;text-align:right">'+c[1].toFixed(1)+'h</div></div>';
+  }).join(''):'<p style="color:#52525b;font-size:.85rem">No activity this week.</p>';
+  var rows=recent.length?recent.map(function(l){var col=CC[l.category]||'#888';
+    return '<div style="display:flex;align-items:start;gap:8px;padding:8px 0;border-bottom:1px solid #27272a"><div style="width:7px;height:7px;border-radius:50%;background:'+col+';margin-top:5px;flex-shrink:0"></div><div style="flex:1;min-width:0"><div style="font-size:.85rem;color:#e4e4e7;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(l.activity||'')+'</div><div style="font-size:.75rem;color:#71717a">'+(l.category||'')+' · '+(l.date||'')+'</div></div><div style="font-size:.85rem;color:#a78bfa;flex-shrink:0">'+(l.hours||0)+'h</div></div>';
+  }).join(''):'<p style="color:#52525b;font-size:.85rem">No activity logged yet.</p>';
+  el.innerHTML='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin-bottom:18px">'
+    +'<div style="background:#18181b;border-radius:14px;padding:18px"><div style="color:#71717a;font-size:.75rem;margin-bottom:4px">This Week</div><div style="font-size:2rem;font-weight:700;color:#34d399">'+wh.toFixed(1)+'<span style="font-size:.9rem;color:#52525b;font-weight:400"> / '+weekGoal+'h</span></div><div style="height:5px;background:#27272a;border-radius:5px;margin-top:8px;overflow:hidden"><div style="width:'+pct+'%;height:100%;background:#34d399;border-radius:5px"></div></div><div style="color:#34d399;font-size:.75rem;margin-top:4px">'+pct+'% of goal</div></div>'
+    +'<div style="background:#18181b;border-radius:14px;padding:18px"><div style="color:#71717a;font-size:.75rem;margin-bottom:4px">Points</div><div style="font-size:2rem;font-weight:700;color:#a78bfa">'+pts+'</div><div style="color:#71717a;font-size:.75rem;margin-top:4px">'+(pts>=300?'✅ Allowance earned!':((300-pts)+' pts needed'))+'</div></div>'
+    +'<div style="background:#18181b;border-radius:14px;padding:18px"><div style="color:#71717a;font-size:.75rem;margin-bottom:4px">Activities</div><div style="font-size:2rem;font-weight:700;color:#38bdf8">'+wl.length+'</div><div style="color:#71717a;font-size:.75rem;margin-top:4px">this week · '+logs.length+' total</div></div>'
+    +'</div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px">'
+    +'<div style="background:#18181b;border-radius:14px;padding:18px"><h3 style="font-size:.9rem;font-weight:600;margin:0 0 12px;color:#f4f4f5">By Category</h3>'+catBars+'</div>'
+    +'<div style="background:#18181b;border-radius:14px;padding:18px"><h3 style="font-size:.9rem;font-weight:600;margin:0 0 12px;color:#f4f4f5">Recent Activity</h3>'+rows+'</div>'
+    +'</div>';
+}
+
+// ── PWA service worker ────────────────────────────────────────
+if('serviceWorker' in navigator){
+  var swc=['const CACHE="lt-v4";',
     'self.addEventListener("install",e=>{self.skipWaiting();});',
     'self.addEventListener("activate",e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));});',
-    'self.addEventListener("fetch",e=>{',
-    '  var u=e.request.url;',
-    '  if(e.request.method!=="GET"||u.includes("googleapis.com")||u.includes("gstatic.com/firebasejs")||u.includes("firestore")||u.includes("identitytoolkit")||u.includes("securetoken")) return;',
-    '  e.respondWith(fetch(e.request).catch(()=>caches.match(e.request)));',
-    '});'
+    'self.addEventListener("fetch",e=>{var u=e.request.url;if(e.request.method!=="GET"||u.includes("googleapis.com")||u.includes("gstatic.com/firebasejs")||u.includes("firestore")||u.includes("identitytoolkit")||u.includes("securetoken"))return;e.respondWith(fetch(e.request).catch(()=>caches.match(e.request)));});'
   ].join('\n');
-  var blob = new Blob([swCode],{type:'application/javascript'});
-  navigator.serviceWorker.register(URL.createObjectURL(blob))
-    .then(function(){console.log('[LynxTrack] SW ready');})
-    .catch(function(e){console.warn('[LynxTrack] SW skipped:',e.message);});
+  navigator.serviceWorker.register(URL.createObjectURL(new Blob([swc],{type:'application/javascript'}))).catch(function(){});
 }
-var _dPr=null;
-window.addEventListener('beforeinstallprompt',function(e){
-  e.preventDefault();_dPr=e;
-  var d=document.createElement('div');
-  d.id='lt-install';
-  d.style.cssText='position:fixed;bottom:1.5rem;left:50%;transform:translateX(-50%);background:#18181b;border:1px solid #3f3f46;border-radius:1rem;padding:.75rem 1.25rem;z-index:9999;display:flex;align-items:center;gap:.75rem;font-size:.875rem;color:#f4f4f5;white-space:nowrap;box-shadow:0 4px 24px rgba(0,0,0,.5)';
-  d.innerHTML='<span>🐾 Install LynxTrack</span><button onclick="if(_dPr){_dPr.prompt();_dPr=null;}document.getElementById(String.fromCharCode(108,116,45,105,110,115,116,97,108,108)).remove()" style="background:#7c3aed;color:white;border:none;padding:.4rem .9rem;border-radius:.5rem;cursor:pointer;font-size:.8rem;font-weight:600">Add to Home Screen</button><button onclick="this.parentElement.remove()" style="background:none;border:none;color:#71717a;cursor:pointer;font-size:1.2rem">&#x2715;</button>';
-  document.body.appendChild(d);
-});
 </script>
 
 </body>
