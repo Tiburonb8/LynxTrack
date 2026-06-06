@@ -41,6 +41,10 @@
       _currentUser = user;
       document.getElementById("auth-screen").style.display = "none";
       document.getElementById("main-app").style.display    = "block";
+      // Always land on Today tab after sign-in
+      setTimeout(function(){
+        if(typeof switchTab==="function") switchTab(0);
+      }, 50);
       document.getElementById("user-avatar").textContent   = user.displayName ? user.displayName[0].toUpperCase() : "?";
       document.getElementById("user-name").textContent     = user.displayName || user.email;
       document.getElementById("user-uid").textContent      = "UID: " + user.uid;
@@ -2983,10 +2987,14 @@ function scheduleMidnightCheck(){
 }
 
 window.onload=function(){
-  // Initialize first tab as visible
+  // Initialize first tab as visible - use switchTab for consistency
+  // Temporarily suppress animation
   var first = document.getElementById('tab-content-0');
-  if(first){ first.classList.add('tab-visible'); first.style.animationName='none'; }
-  _activeTab = 0;
+  if(first){ first.classList.add('tab-visible'); first.style.animation='none'; }
+  document.querySelectorAll('.tabs-bar button').forEach(function(b){b.classList.remove('tab-active','text-white');});
+  var t0btn = document.getElementById('tab-0');
+  if(t0btn) t0btn.classList.add('tab-active','text-white');
+  _activeTab = 0; activeTab = 0;
   setMode('log');
   updateFutureImpactHint();
   autoMoveTomorrowPlans();
