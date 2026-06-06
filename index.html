@@ -34,15 +34,17 @@
   // ── Parent UID (set after son first logs in) ──────────────────
   // Replace YOUR_UID_HERE with your own Google UID after first login
   // Replace SON_UID_HERE with your son's UID after his first login
-  const PARENT_UID = 'YOUR_UID_HERE';
-  const SON_UID    = 'SON_UID_HERE';
+  const PARENT1_UID = 'VK7a9Fx1TjcwHRSEe26nkHu1nHp1';
+  const PARENT2_UID = '6SfDo657ShMfRmDV9Iont5LBRtA2';
+const SON_UID    = '4u6vqWeiu1Uu6qXcuCT35MFQHSs2';  
 
   let currentUser = null;
   let unsubscribeSnapshot = null;
 
   // ── Expose globals for inline onclick handlers ────────────────
   window._fb = { auth, db, provider, signInWithPopup, signOut, doc, setDoc, getDoc, onSnapshot, getDocs, collection };
-  window._PARENT_UID = PARENT_UID;
+  window._PARENT1_UID = PARENT1_UID;
+window._PARENT2_UID = PARENT2_UID;
   window._SON_UID    = SON_UID;
 
   // ── Auth state listener ───────────────────────────────────────
@@ -60,7 +62,7 @@
       // Show parent dashboard tab only for parent account
       const parentTab = document.getElementById('tab-parent');
       const parentContent = document.getElementById('tab-content-parent');
-      if (user.uid === PARENT_UID && SON_UID !== 'SON_UID_HERE') {
+      if ((user.uid === PARENT1_UID || user.uid === PARENT2_UID)) {
         if (parentTab) parentTab.style.display = 'inline-block';
       }
 
@@ -84,7 +86,7 @@
       });
 
       // If parent, also load son's data for dashboard
-      if (user.uid === PARENT_UID && SON_UID !== 'SON_UID_HERE') {
+      if ((user.uid === PARENT1_UID || user.uid === PARENT2_UID)) {
         loadSonData();
       }
 
