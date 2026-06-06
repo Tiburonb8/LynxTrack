@@ -178,7 +178,7 @@
     display: none;
   }
   .tab-content.tab-visible {
-    display: block;
+    display: block !important;
     animation: tabSlideIn .22s ease forwards;
   }
   .tab-content.tab-animating-out {
@@ -708,7 +708,7 @@
   </div>
 
   <!-- ════════════════ TOMORROW TAB ════════════════ -->
-  <div id="tab-content-1" class="tab-content hidden">
+  <div id="tab-content-1" class="tab-content">
     <div class="card bg-zinc-900 rounded-3xl p-6 max-w-3xl mx-auto">
       <h2 class="text-2xl font-semibold mb-2 flex items-center gap-3">
         <i class="fas fa-moon text-indigo-400"></i> Tomorrow's Plan
@@ -766,7 +766,7 @@
   </div>
 
   <!-- ════════════════ ANALYTICS TAB ════════════════ -->
-  <div id="tab-content-2" class="tab-content hidden">
+  <div id="tab-content-2" class="tab-content">
     <div class="space-y-6">
       <!-- Row 1: stacked daily + donut -->
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -807,7 +807,7 @@
   </div>
 
   <!-- ════════════════ HISTORY TAB ════════════════ -->
-  <div id="tab-content-3" class="tab-content hidden">
+  <div id="tab-content-3" class="tab-content">
     <!-- Day navigator -->
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;gap:10px">
       <button onclick="histNavDay(-1)" style="background:#27272a;border:none;color:#f4f4f5;padding:8px 14px;border-radius:12px;cursor:pointer;font-size:.85rem;display:flex;align-items:center;gap:6px">
@@ -832,7 +832,7 @@
   </div>
 
 <!-- TAB 4: IMPROVED FUTURE PLANS CALENDAR -->
-<div id="tab-content-4" class="tab-content hidden">
+<div id="tab-content-4" class="tab-content">
   <div class="card bg-zinc-900 rounded-3xl p-3 md:p-6" style="overflow-x:auto">
     <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
       <h2 class="text-lg font-semibold flex items-center gap-2">
@@ -860,7 +860,7 @@
 </div>
 
   <!-- ════════════════ POINTS & BADGES TAB ════════════════ -->
-  <div id="tab-content-5" class="tab-content hidden">
+  <div id="tab-content-5" class="tab-content">
 
     <!-- Header row -->
     <div class="flex items-center justify-between mb-6">
@@ -934,7 +934,7 @@
   </div>
 
   <!-- ════════════════ 6-MONTH GOALS TAB ════════════════ -->
-  <div id="tab-content-6" class="tab-content hidden">
+  <div id="tab-content-6" class="tab-content">
     <div class="max-w-3xl mx-auto space-y-6">
       <div class="flex items-center justify-between">
         <div>
@@ -970,7 +970,7 @@
   </div>
 
   <!-- ════════════════ RECURRING TASKS TAB ════════════════ -->
-  <div id="tab-content-7" class="tab-content hidden">
+  <div id="tab-content-7" class="tab-content">
     <div class="max-w-3xl mx-auto space-y-6">
       <div class="flex items-center justify-between">
         <div>
@@ -3055,7 +3055,7 @@ function restoreLynxBackup(){
 
 
   <!-- PARENT DASHBOARD TAB -->
-  <div id="tab-content-8" class="tab-content hidden">
+  <div id="tab-content-8" class="tab-content">
     <div class="max-w-4xl mx-auto space-y-6">
       <div class="flex items-center justify-between">
         <div>
