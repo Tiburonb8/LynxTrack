@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!-- LynxTrack v7 build cebad9ff -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -92,7 +93,7 @@ function loadSonData(){
     }).catch(function(e){console.error("Son data error:",e);});
 }
 </script>
-<title>LynxTrack v6.0 Enterprise</title>
+<title>LynxTrack v7</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.tailwindcss.com"></script>
@@ -926,6 +927,28 @@ function loadSonData(){
       </div>
     </div>
   </div>
+
+  <!-- Dashboard Tab -->
+  <div id="tab-content-8" class="tab-content">
+    <div style="max-width:900px;margin:0 auto;padding:16px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px">
+        <div>
+          <h2 style="font-size:1.5rem;font-weight:700;display:flex;align-items:center;gap:10px">
+            <i class="fas fa-binoculars" style="color:#a78bfa"></i> Your Son's Activity
+          </h2>
+          <p style="color:#71717a;font-size:.85rem;margin-top:4px">Read-only — click Refresh to update</p>
+        </div>
+        <button onclick="loadSonData()" style="background:#27272a;border:none;color:#d4d4d8;padding:8px 16px;border-radius:12px;cursor:pointer;font-size:.85rem;display:flex;align-items:center;gap:6px">
+          <i class="fas fa-sync"></i> Refresh
+        </button>
+      </div>
+      <div id="parent-dashboard-content">
+        <p style="color:#52525b;text-align:center;padding:48px 0">Click Refresh to load your son's activity.</p>
+      </div>
+    </div>
+  </div>
+
+  </div><!-- /tab-contents-wrapper -->
 
 </div><!-- /max-w -->
 
