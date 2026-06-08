@@ -35,7 +35,7 @@ _auth.onAuthStateChanged(function(user){
     if(_unsubscribe)_unsubscribe();
     _unsubscribe=_db.collection("users").doc(user.uid).collection("app").doc("data")
       .onSnapshot(function(snap){
-        if(snap.exists()){
+        if(snap.exists){
           var s=snap.data();
           if(s.logs)s.logs.forEach(function(l){if(!l.id)l.id=uid();});
           if(s.tasks)s.tasks.forEach(function(t){if(!t.id)t.id=uid();});
@@ -84,7 +84,7 @@ function _saveToFirestore(d){
 function loadSonData(){
   _db.collection("users").doc(SON_UID).collection("app").doc("data")
     .get().then(function(snap){
-      if(typeof renderParentDashboard==="function")renderParentDashboard(snap.exists()?snap.data():null);
+      if(typeof renderParentDashboard==="function")renderParentDashboard(snap.exists?snap.data():null);
     }).catch(function(e){console.error("Son data error:",e);});
 }
 </script>
@@ -1573,54 +1573,54 @@ function renderHistory(){
       var yDate2 = new Date(); yDate2.setDate(yDate2.getDate()-1);
       var isYest2 = dateStr === yDate2.toISOString().slice(0,10);
       var dayLabel = isToday2 ? 'Today' : isYest2 ? 'Yesterday' : dns2[d2.getDay()]+' '+mns2[d2.getMonth()]+' '+d2.getDate();
-      html += \`<div class="col-span-full mb-2">
+      html += `<div class="col-span-full mb-2">
         <div class="flex items-center gap-3 mb-2">
-          <div class="text-sm font-semibold text-zinc-300">\${dayLabel}</div>
-          <div class="text-xs text-zinc-500">\${dayHrs.toFixed(1)}h · \${dayPts} pts</div>
+          <div class="text-sm font-semibold text-zinc-300">${dayLabel}</div>
+          <div class="text-xs text-zinc-500">${dayHrs.toFixed(1)}h · ${dayPts} pts</div>
           <div class="flex-1 h-px bg-zinc-800"></div>
         </div>
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-          \${entries.map(log => \`
+          ${entries.map(log => `
             <div class="bg-zinc-900 rounded-2xl p-4">
               <div class="flex justify-between text-xs text-zinc-500 mb-2">
                 <span></span>
                 <div class="flex items-center gap-2">
-                  <span class="px-2 py-0.5 rounded-full" style="background:\${catColor(log.category)}22;color:\${catColor(log.category)}">\${esc(log.category||'')}</span>
-                  <span class="font-mono">\${log.hours}h</span>
-                  <span class="font-semibold text-violet-400">+\${calcPts(log.hours,log.category)}pts</span>
+                  <span class="px-2 py-0.5 rounded-full" style="background:${catColor(log.category)}22;color:${catColor(log.category)}">${esc(log.category||'')}</span>
+                  <span class="font-mono">${log.hours}h</span>
+                  <span class="font-semibold text-violet-400">+${calcPts(log.hours,log.category)}pts</span>
                 </div>
               </div>
-              <div class="font-medium text-sm">\${esc(log.activity)}</div>
-              <div class="text-xs text-emerald-300 mt-1">\${esc(log.futureBenefit||'')}</div>
+              <div class="font-medium text-sm">${esc(log.activity)}</div>
+              <div class="text-xs text-emerald-300 mt-1">${esc(log.futureBenefit||'')}</div>
               <div class="flex items-center gap-2 mt-2 flex-wrap">
-                <button onclick="openHistModal('\${log.id}')" class="plan-action-btn text-violet-300 border-violet-800 hover:bg-violet-950"><i class="fas fa-redo" style="font-size:9px"></i> Re-use</button>
-                <button onclick="deleteLog('\${log.id}')" class="plan-action-btn text-zinc-500 border-zinc-700 hover:text-red-400 hover:border-red-800"><i class="fas fa-trash" style="font-size:9px"></i> Delete</button>
+                <button onclick="openHistModal('${log.id}')" class="plan-action-btn text-violet-300 border-violet-800 hover:bg-violet-950"><i class="fas fa-redo" style="font-size:9px"></i> Re-use</button>
+                <button onclick="deleteLog('${log.id}')" class="plan-action-btn text-zinc-500 border-zinc-700 hover:text-red-400 hover:border-red-800"><i class="fas fa-trash" style="font-size:9px"></i> Delete</button>
               </div>
-            </div>\`).join('')}
+            </div>`).join('')}
         </div>
-      </div>\`;
+      </div>`;
     });
     if(!dates.length) html = '<p class="col-span-full text-center py-16 text-zinc-500">No activity in the past 7 days.</p>';
   } else {
     // Single day or search view
-    html = filtered.length ? filtered.map(log => \`
+    html = filtered.length ? filtered.map(log => `
       <div class="bg-zinc-900 rounded-3xl p-5">
         <div class="flex justify-between text-xs text-zinc-500 mb-2">
-          <span>\${q ? log.date : ''}</span>
+          <span>${q ? log.date : ''}</span>
           <div class="flex items-center gap-2">
-            <span class="px-2 py-0.5 rounded-full" style="background:\${catColor(log.category)}22;color:\${catColor(log.category)}">\${esc(log.category||'')}</span>
-            <span class="font-mono">\${log.hours}h</span>
-            <span class="font-semibold text-violet-400">+\${calcPts(log.hours,log.category)}pts</span>
+            <span class="px-2 py-0.5 rounded-full" style="background:${catColor(log.category)}22;color:${catColor(log.category)}">${esc(log.category||'')}</span>
+            <span class="font-mono">${log.hours}h</span>
+            <span class="font-semibold text-violet-400">+${calcPts(log.hours,log.category)}pts</span>
           </div>
         </div>
-        <div class="font-medium">\${esc(log.activity)}</div>
-        <div class="text-xs text-emerald-300 mt-2">\${esc(log.futureBenefit||'')}</div>
+        <div class="font-medium">${esc(log.activity)}</div>
+        <div class="text-xs text-emerald-300 mt-2">${esc(log.futureBenefit||'')}</div>
         <div class="flex items-center gap-2 mt-3 flex-wrap">
-          <button onclick="openHistModal('\${log.id}')" class="plan-action-btn text-violet-300 border-violet-800 hover:bg-violet-950"><i class="fas fa-redo" style="font-size:9px"></i> Re-use</button>
-          <button onclick="deleteLog('\${log.id}')" class="plan-action-btn text-zinc-500 border-zinc-700 hover:text-red-400 hover:border-red-800"><i class="fas fa-trash" style="font-size:9px"></i> Delete</button>
+          <button onclick="openHistModal('${log.id}')" class="plan-action-btn text-violet-300 border-violet-800 hover:bg-violet-950"><i class="fas fa-redo" style="font-size:9px"></i> Re-use</button>
+          <button onclick="deleteLog('${log.id}')" class="plan-action-btn text-zinc-500 border-zinc-700 hover:text-red-400 hover:border-red-800"><i class="fas fa-trash" style="font-size:9px"></i> Delete</button>
         </div>
-      </div>\`).join('')
-    : \`<p class="col-span-full text-center py-16 text-zinc-500">\${q?'No matching entries.':_histDate===localDateStr()?'Nothing logged today yet.':'Nothing logged on this day.'}</p>\`;
+      </div>`).join('')
+    : `<p class="col-span-full text-center py-16 text-zinc-500">${q?'No matching entries.':_histDate===localDateStr()?'Nothing logged today yet.':'Nothing logged on this day.'}</p>`;
   }
 
   container.innerHTML = html;
