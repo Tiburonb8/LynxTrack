@@ -120,7 +120,7 @@ function loadSonData(){
   .tabs-bar button.tab-active{color:#f4f4f5;border-bottom-color:#7c3aed;}
   /* ── Tab content: simple show/hide with animation ── */
   .tab-content{display:none;}
-  .tab-content.tab-visible{display:block !important;animation:tabIn .2s ease;}
+  .tab-content.tab-visible{display:block !important;opacity:1;}
   @keyframes tabIn{from{opacity:0;transform:translateX(20px);}to{opacity:1;transform:translateX(0);}}
   @keyframes tabInLeft{from{opacity:0;transform:translateX(-20px);}to{opacity:1;transform:translateX(0);}}
 
@@ -929,7 +929,7 @@ function loadSonData(){
   </div>
 
   <!-- Dashboard Tab -->
-  <div id="tab-content-8" class="tab-content">
+  <div id="tab-content-8" class="tab-content" style="min-height:400px">
     <div style="max-width:900px;margin:0 auto;padding:16px">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px">
         <div>
@@ -1065,7 +1065,6 @@ function switchTab(n,dir){
   // Show new tab with animation
   var next=document.getElementById('tab-content-'+n);
   if(next){
-    next.style.animationName=(dir==='left'||(dir===undefined&&n<prev))?'tabInLeft':'tabIn';
     next.classList.add('tab-visible');
   }
   if(n===2)renderAnalytics();
