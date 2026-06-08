@@ -1379,14 +1379,36 @@ function renderTomorrowPlans(){
   // Get future plans scheduled for tomorrow
   const tmrStr=(()=>{const t=new Date();t.setDate(t.getDate()+1);return localDateStr(t);})();
   const fpTmr=(data.futurePlans||[]).filter(p=>p.date===tmrStr);
+  // Also include recurring tasks scheduled for tomorrow
+  const recTmr=(data.recurringTasks||[]).filter(r=>isRecurringToday_forDate(r,tmrStr));
 
-  if(!data.tomorrowPlans.length && !fpTmr.length){
+  if(!data.tomorrowPlans.length && !fpTmr.length && !recTmr.length){
     container.innerHTML=`<p class="text-zinc-500 py-8 text-center text-sm">No plans yet. Add below or schedule in Future Plans.</p>`;
     document.getElementById('tomorrow-total').textContent='0h';
     return;
   }
   // Show Future Plans for tomorrow first (read-only preview)
   let fpSection = '';
+  // Build recurring section for tomorrow
+  var recSection = '';
+  if (recTmr.length) {
+    recSection = '<div class="mb-3">'
+      + '<div class="text-xs text-zinc-500 font-semibold uppercase tracking-wide mb-2">Recurring Tomorrow</div>'
+      + recTmr.map(function(r) {
+          var col = catColor(r.category);
+          total += r.hours;
+          return '<div class="flex items-center gap-3 bg-violet-950 border border-violet-800 rounded-2xl p-3 mb-1.5">'
+            + '<div class="font-mono text-lg font-bold text-violet-400 w-10 shrink-0">' + r.hours + 'h</div>'
+            + '<div class="flex-1 min-w-0">'
+            + '<p class="font-medium text-sm truncate">' + esc(r.title) + '</p>'
+            + '<span class="text-xs px-2 py-0.5 rounded-full" style="background:' + col + '22;color:' + col + '">' + esc(r.category) + '</span>'
+            + '</div>'
+            + '<i class="fas fa-repeat" style="color:#a78bfa;font-size:.75rem;flex-shrink:0"></i>'
+            + '</div>';
+        }).join('')
+      + '</div>';
+  }
+
   if (fpTmr.length) {
     fpSection = '<div class="mb-3">'
       + '<div class="text-xs text-zinc-500 font-semibold uppercase tracking-wide mb-2">From Future Plans</div>'
@@ -1404,7 +1426,7 @@ function renderTomorrowPlans(){
         }).join('')
       + '</div>';
   }
-  container.innerHTML=fpSection+(data.tomorrowPlans.length?'':'')+data.tomorrowPlans.map(p=>{
+  container.innerHTML=recSection+fpSection+(data.tomorrowPlans.length?'':'')+data.tomorrowPlans.map(p=>{
     total+=p.hours;
     const col=catColor(p.category);
     return `<div class="flex items-start gap-4 bg-zinc-800 rounded-2xl p-4">
@@ -2773,23 +2795,25 @@ function deleteRecurring(id){
   showToast('Recurring task removed.');
 }
 
-function isRecurringToday(r){
-  const todayStr=localDateStr();
-  if(r.endDate&&todayStr>r.endDate)return false;
+function isRecurringToday_forDate(r, dateStr){
+  if(!dateStr) dateStr=localDateStr();
+  if(r.endDate&&dateStr>r.endDate)return false;
   const freq=r.freq||'every';
-  if(freq==='on')return(r.onDates||[]).includes(todayStr);
-  const dayName=DAY_NAMES[new Date().getDay()];
+  if(freq==='on')return(r.onDates||[]).includes(dateStr);
+  const d=new Date(dateStr+'T12:00:00');
+  const dayName=DAY_NAMES[d.getDay()];
   if(!(r.days||[]).includes(dayName))return false;
   if(freq==='everyother'){
-    const created=new Date((r.createdAt||todayStr)+'T12:00:00');
+    const created=new Date((r.createdAt||dateStr)+'T12:00:00');
     const cd=created.getDay();
     const cMon=new Date(created);cMon.setDate(created.getDate()-cd+(cd===0?-6:1));
-    const tDate=new Date(todayStr+'T12:00:00');const td=tDate.getDay();
-    const tMon=new Date(tDate);tMon.setDate(tDate.getDate()-td+(td===0?-6:1));
+    const td=d.getDay();
+    const tMon=new Date(d);tMon.setDate(d.getDate()-td+(td===0?-6:1));
     return Math.round((tMon-cMon)/(7*24*60*60*1000))%2===0;
   }
   return true;
 }
+function isRecurringToday(r){return isRecurringToday_forDate(r,localDateStr());}
 
 function applyRecurringToToday(){
   if(!data.recurringTasks||!data.recurringTasks.length){showToast('No recurring tasks set up yet.');return;}
