@@ -1495,134 +1495,116 @@ function deleteLog(id){
   saveData(); showToast('🗑️ Entry deleted.');
 }
 
-var _histMode = 'week'; // 'week' | 'day'
+var _histMode = 'week';
 
 function setHistMode(mode){
   _histMode = mode;
-  var btn7 = document.getElementById('hist-mode-7');
-  var btnDay = document.getElementById('hist-mode-day');
-  var dayNav = document.getElementById('hist-day-nav');
-  if(btn7){ btn7.style.background = mode==='week' ? '#6d28d9' : 'transparent'; btn7.style.color = mode==='week' ? 'white' : '#71717a'; btn7.style.fontWeight = mode==='week' ? '600' : '400'; }
-  if(btnDay){ btnDay.style.background = mode==='day' ? '#6d28d9' : 'transparent'; btnDay.style.color = mode==='day' ? 'white' : '#71717a'; btnDay.style.fontWeight = mode==='day' ? '600' : '400'; }
-  if(dayNav){ dayNav.style.display = mode==='day' ? 'flex' : 'none'; }
+  var b7 = document.getElementById('hist-mode-7');
+  var bd = document.getElementById('hist-mode-day');
+  var dn = document.getElementById('hist-day-nav');
+  if(b7){ b7.style.background = mode==='week'?'#6d28d9':'transparent'; b7.style.color = mode==='week'?'white':'#71717a'; b7.style.fontWeight = mode==='week'?'600':'400'; }
+  if(bd){ bd.style.background = mode==='day'?'#6d28d9':'transparent'; bd.style.color = mode==='day'?'white':'#71717a'; bd.style.fontWeight = mode==='day'?'600':'400'; }
+  if(dn){ dn.style.display = mode==='day'?'flex':'none'; }
   renderHistory();
 }
 
 function renderHistory(){
-  const container = document.getElementById('history'); if(!container) return;
-  const q = (document.getElementById('history-search')?.value||'').toLowerCase();
-  const statsEl = document.getElementById('hist-day-stats');
-
-  // Update next-day button opacity
+  var container = document.getElementById('history'); if(!container) return;
+  var q = (document.getElementById('history-search') ? document.getElementById('history-search').value : '').toLowerCase();
+  var statsEl = document.getElementById('hist-day-stats');
   var nextBtn = document.getElementById('hist-next-btn');
   if(nextBtn) nextBtn.style.opacity = (_histDate >= localDateStr()) ? '0.3' : '1';
 
-  // Update day label (single-day mode)
+  // Day label for single-day mode
   var labelEl = document.getElementById('hist-day-label');
-  if(labelEl) {
-    var d = new Date(_histDate + 'T12:00:00');
-    var isToday = _histDate === localDateStr();
-    var yDate = new Date(); yDate.setDate(yDate.getDate()-1);
-    var isYest = _histDate === yDate.toISOString().slice(0,10);
-    var dns = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
-    var mns = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    labelEl.textContent = isToday ? 'Today' : isYest ? 'Yesterday' : dns[d.getDay()]+', '+mns[d.getMonth()]+' '+d.getDate();
+  if(labelEl){
+    var d0 = new Date(_histDate + 'T12:00:00');
+    var isToday0 = _histDate === localDateStr();
+    var yy = new Date(); yy.setDate(yy.getDate()-1);
+    var isYest0 = _histDate === yy.toISOString().slice(0,10);
+    var DNS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+    var MNS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    labelEl.textContent = isToday0 ? 'Today' : isYest0 ? 'Yesterday' : DNS[d0.getDay()] + ', ' + MNS[d0.getMonth()] + ' ' + d0.getDate();
   }
 
   var filtered;
-  if(q) {
-    // Search always spans all history
-    filtered = data.logs.filter(l => l.activity.toLowerCase().includes(q) || (l.futureBenefit||'').toLowerCase().includes(q));
+  if(q){
+    filtered = data.logs.filter(function(l){ return l.activity.toLowerCase().indexOf(q)>=0 || (l.futureBenefit||'').toLowerCase().indexOf(q)>=0; });
     if(statsEl) statsEl.textContent = filtered.length + ' result' + (filtered.length===1?'':'s');
-  } else if(_histMode === 'week') {
-    // Past 7 days including today
+  } else if(_histMode === 'week'){
     var cutoff = new Date(); cutoff.setDate(cutoff.getDate()-6);
     var cutoffStr = cutoff.toISOString().slice(0,10);
-    filtered = data.logs.filter(l => l.date >= cutoffStr && l.date <= localDateStr());
-    filtered = filtered.slice().sort((a,b) => new Date(b.date)-new Date(a.date));
-    if(statsEl) {
-      var wh = filtered.reduce((s,l)=>s+(l.hours||0),0);
-      var wp = filtered.reduce((s,l)=>s+calcPts(l.hours,l.category),0);
-      statsEl.textContent = filtered.length + ' activit'+(filtered.length===1?'y':'ies')+' · '+wh.toFixed(1)+'h · '+wp+' pts';
+    filtered = data.logs.filter(function(l){ return l.date >= cutoffStr && l.date <= localDateStr(); });
+    filtered.sort(function(a,b){ return b.date.localeCompare(a.date); });
+    if(statsEl){
+      var wh = filtered.reduce(function(s,l){return s+(l.hours||0);},0);
+      var wp = filtered.reduce(function(s,l){return s+calcPts(l.hours,l.category);},0);
+      statsEl.textContent = filtered.length + ' activit' + (filtered.length===1?'y':'ies') + ' · ' + wh.toFixed(1) + 'h · ' + wp + ' pts';
     }
   } else {
-    // Single day
-    filtered = data.logs.filter(l => l.date === _histDate);
-    if(statsEl) {
-      var dh = filtered.reduce((s,l)=>s+(l.hours||0),0);
-      var dp = filtered.reduce((s,l)=>s+calcPts(l.hours,l.category),0);
+    filtered = data.logs.filter(function(l){ return l.date === _histDate; });
+    if(statsEl){
+      var dh = filtered.reduce(function(s,l){return s+(l.hours||0);},0);
+      var dp = filtered.reduce(function(s,l){return s+calcPts(l.hours,l.category);},0);
       statsEl.textContent = filtered.length ? dh.toFixed(1)+'h · '+dp+' pts · '+filtered.length+' activit'+(filtered.length===1?'y':'ies') : 'Nothing logged';
     }
   }
 
-  // Group by date for week mode
-  var html = '';
-  if(!q && _histMode === 'week') {
-    // Group entries by date
-    var byDate = {};
-    filtered.forEach(log => { if(!byDate[log.date]) byDate[log.date]=[]; byDate[log.date].push(log); });
-    var dates = Object.keys(byDate).sort((a,b) => b.localeCompare(a));
-    dates.forEach(dateStr => {
-      var entries = byDate[dateStr];
-      var dayHrs = entries.reduce((s,l)=>s+(l.hours||0),0);
-      var dayPts = entries.reduce((s,l)=>s+calcPts(l.hours,l.category),0);
-      var d2 = new Date(dateStr+'T12:00:00');
-      var dns2 = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-      var mns2 = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-      var isToday2 = dateStr === localDateStr();
-      var yDate2 = new Date(); yDate2.setDate(yDate2.getDate()-1);
-      var isYest2 = dateStr === yDate2.toISOString().slice(0,10);
-      var dayLabel = isToday2 ? 'Today' : isYest2 ? 'Yesterday' : dns2[d2.getDay()]+' '+mns2[d2.getMonth()]+' '+d2.getDate();
-      html += `<div class="col-span-full mb-2">
-        <div class="flex items-center gap-3 mb-2">
-          <div class="text-sm font-semibold text-zinc-300">${dayLabel}</div>
-          <div class="text-xs text-zinc-500">${dayHrs.toFixed(1)}h · ${dayPts} pts</div>
-          <div class="flex-1 h-px bg-zinc-800"></div>
-        </div>
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-          ${entries.map(log => `
-            <div class="bg-zinc-900 rounded-2xl p-4">
-              <div class="flex justify-between text-xs text-zinc-500 mb-2">
-                <span></span>
-                <div class="flex items-center gap-2">
-                  <span class="px-2 py-0.5 rounded-full" style="background:${catColor(log.category)}22;color:${catColor(log.category)}">${esc(log.category||'')}</span>
-                  <span class="font-mono">${log.hours}h</span>
-                  <span class="font-semibold text-violet-400">+${calcPts(log.hours,log.category)}pts</span>
-                </div>
-              </div>
-              <div class="font-medium text-sm">${esc(log.activity)}</div>
-              <div class="text-xs text-emerald-300 mt-1">${esc(log.futureBenefit||'')}</div>
-              <div class="flex items-center gap-2 mt-2 flex-wrap">
-                <button onclick="openHistModal('${log.id}')" class="plan-action-btn text-violet-300 border-violet-800 hover:bg-violet-950"><i class="fas fa-redo" style="font-size:9px"></i> Re-use</button>
-                <button onclick="deleteLog('${log.id}')" class="plan-action-btn text-zinc-500 border-zinc-700 hover:text-red-400 hover:border-red-800"><i class="fas fa-trash" style="font-size:9px"></i> Delete</button>
-              </div>
-            </div>`).join('')}
-        </div>
-      </div>`;
-    });
-    if(!dates.length) html = '<p class="col-span-full text-center py-16 text-zinc-500">No activity in the past 7 days.</p>';
-  } else {
-    // Single day or search view
-    html = filtered.length ? filtered.map(log => `
-      <div class="bg-zinc-900 rounded-3xl p-5">
-        <div class="flex justify-between text-xs text-zinc-500 mb-2">
-          <span>${q ? log.date : ''}</span>
-          <div class="flex items-center gap-2">
-            <span class="px-2 py-0.5 rounded-full" style="background:${catColor(log.category)}22;color:${catColor(log.category)}">${esc(log.category||'')}</span>
-            <span class="font-mono">${log.hours}h</span>
-            <span class="font-semibold text-violet-400">+${calcPts(log.hours,log.category)}pts</span>
-          </div>
-        </div>
-        <div class="font-medium">${esc(log.activity)}</div>
-        <div class="text-xs text-emerald-300 mt-2">${esc(log.futureBenefit||'')}</div>
-        <div class="flex items-center gap-2 mt-3 flex-wrap">
-          <button onclick="openHistModal('${log.id}')" class="plan-action-btn text-violet-300 border-violet-800 hover:bg-violet-950"><i class="fas fa-redo" style="font-size:9px"></i> Re-use</button>
-          <button onclick="deleteLog('${log.id}')" class="plan-action-btn text-zinc-500 border-zinc-700 hover:text-red-400 hover:border-red-800"><i class="fas fa-trash" style="font-size:9px"></i> Delete</button>
-        </div>
-      </div>`).join('')
-    : `<p class="col-span-full text-center py-16 text-zinc-500">${q?'No matching entries.':_histDate===localDateStr()?'Nothing logged today yet.':'Nothing logged on this day.'}</p>`;
+  function logCard(log, showDate){
+    var catCol = catColor(log.category);
+    var card = '<div class="bg-zinc-900 rounded-2xl p-4">';
+    card += '<div class="flex justify-between text-xs text-zinc-500 mb-2">';
+    card += '<span>' + (showDate ? esc(log.date||'') : '') + '</span>';
+    card += '<div class="flex items-center gap-2">';
+    card += '<span class="px-2 py-0.5 rounded-full" style="background:' + catCol + '22;color:' + catCol + '">' + esc(log.category||'') + '</span>';
+    card += '<span class="font-mono">' + (log.hours||0) + 'h</span>';
+    card += '<span class="font-semibold text-violet-400">+' + calcPts(log.hours,log.category) + 'pts</span>';
+    card += '</div></div>';
+    card += '<div class="font-medium text-sm">' + esc(log.activity) + '</div>';
+    card += '<div class="text-xs text-emerald-300 mt-1">' + esc(log.futureBenefit||'') + '</div>';
+    card += '<div class="flex items-center gap-2 mt-2 flex-wrap">';
+    card += '<button onclick="openHistModal('' + log.id + '')" class="plan-action-btn text-violet-300 border-violet-800 hover:bg-violet-950"><i class="fas fa-redo" style="font-size:9px"></i> Re-use</button>';
+    card += '<button onclick="deleteLog('' + log.id + '')" class="plan-action-btn text-zinc-500 border-zinc-700 hover:text-red-400 hover:border-red-800"><i class="fas fa-trash" style="font-size:9px"></i> Delete</button>';
+    card += '</div></div>';
+    return card;
   }
 
+  var html = '';
+  if(!q && _histMode === 'week'){
+    var byDate = {};
+    filtered.forEach(function(log){ if(!byDate[log.date]) byDate[log.date]=[]; byDate[log.date].push(log); });
+    var dates = Object.keys(byDate).sort(function(a,b){return b.localeCompare(a);});
+    if(!dates.length){
+      html = '<p class="col-span-full text-center py-16 text-zinc-500">No activity in the past 7 days.</p>';
+    } else {
+      dates.forEach(function(dateStr){
+        var entries = byDate[dateStr];
+        var dh2 = entries.reduce(function(s,l){return s+(l.hours||0);},0);
+        var dp2 = entries.reduce(function(s,l){return s+calcPts(l.hours,l.category);},0);
+        var d2 = new Date(dateStr+'T12:00:00');
+        var isToday2 = dateStr === localDateStr();
+        var yDate2 = new Date(); yDate2.setDate(yDate2.getDate()-1);
+        var isYest2 = dateStr === yDate2.toISOString().slice(0,10);
+        var DNS2 = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+        var MNS2 = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+        var dayLabel = isToday2 ? 'Today' : isYest2 ? 'Yesterday' : DNS2[d2.getDay()] + ' ' + MNS2[d2.getMonth()] + ' ' + d2.getDate();
+        html += '<div class="col-span-full mb-4">';
+        html += '<div class="flex items-center gap-3 mb-2">';
+        html += '<div class="text-sm font-semibold text-zinc-300">' + dayLabel + '</div>';
+        html += '<div class="text-xs text-zinc-500">' + dh2.toFixed(1) + 'h · ' + dp2 + ' pts</div>';
+        html += '<div class="flex-1 h-px bg-zinc-800"></div></div>';
+        html += '<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">';
+        entries.forEach(function(log){ html += logCard(log, false); });
+        html += '</div></div>';
+      });
+    }
+  } else {
+    if(!filtered.length){
+      html = '<p class="col-span-full text-center py-16 text-zinc-500">' + (q ? 'No matching entries.' : _histDate===localDateStr() ? 'Nothing logged today yet.' : 'Nothing logged on this day.') + '</p>';
+    } else {
+      filtered.forEach(function(log){ html += logCard(log, !!q); });
+    }
+  }
   container.innerHTML = html;
 }
   const container=document.getElementById('history');if(!container)return;
