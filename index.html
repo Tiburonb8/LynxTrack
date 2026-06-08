@@ -40,7 +40,7 @@ _auth.onAuthStateChanged(function(user){
           if(s.logs)s.logs.forEach(function(l){if(!l.id)l.id=uid();});
           if(s.tasks)s.tasks.forEach(function(t){if(!t.id)t.id=uid();});
           if(s.tomorrowPlans)s.tomorrowPlans.forEach(function(t){if(!t.id)t.id=uid();});
-          data=Object.assign({},data,s);
+          if(typeof data!=="undefined"){data=Object.assign({},data,s);}else{console.warn("data not ready yet");return;}
           if(!data.badges)data.badges=[];
           if(!data.weeklyPointsHistory)data.weeklyPointsHistory=[];
           if(!data.planEvents)data.planEvents=[];
@@ -1563,8 +1563,8 @@ function renderHistory(){
     card += '<div class="font-medium text-sm">' + esc(log.activity) + '</div>';
     card += '<div class="text-xs text-emerald-300 mt-1">' + esc(log.futureBenefit||'') + '</div>';
     card += '<div class="flex items-center gap-2 mt-2 flex-wrap">';
-    card += '<button onclick="openHistModal('' + log.id + '')" class="plan-action-btn text-violet-300 border-violet-800 hover:bg-violet-950"><i class="fas fa-redo" style="font-size:9px"></i> Re-use</button>';
-    card += '<button onclick="deleteLog('' + log.id + '')" class="plan-action-btn text-zinc-500 border-zinc-700 hover:text-red-400 hover:border-red-800"><i class="fas fa-trash" style="font-size:9px"></i> Delete</button>';
+    card += '<button data-id="' + log.id + '" data-action="reuse" class="plan-action-btn text-violet-300 border-violet-800 hover:bg-violet-950"><i class="fas fa-redo" style="font-size:9px"></i> Re-use</button>';
+    card += '<button data-id="' + log.id + '" data-action="delete" class="plan-action-btn text-zinc-500 border-zinc-700 hover:text-red-400 hover:border-red-800"><i class="fas fa-trash" style="font-size:9px"></i> Delete</button>';
     card += '</div></div>';
     return card;
   }
@@ -2966,6 +2966,16 @@ function scheduleMidnightCheck(){
   var ms=new Date(now.getFullYear(),now.getMonth(),now.getDate()+1,0,0,5).getTime()-now.getTime();
   setTimeout(function(){autoMoveTomorrowPlans();scheduleMidnightCheck();},ms);
 }
+
+// ── History delegated click handler ─────────────────────────
+document.addEventListener('click', function(e){
+  var btn = e.target.closest('[data-action]');
+  if(!btn) return;
+  var id = btn.getAttribute('data-id');
+  var action = btn.getAttribute('data-action');
+  if(action === 'reuse') openHistModal(id);
+  if(action === 'delete') deleteLog(id);
+});
 
 // ── History day navigation ────────────────────────────────────
 var _histDate=typeof localDateStr==='function'?localDateStr():new Date().toISOString().slice(0,10);
