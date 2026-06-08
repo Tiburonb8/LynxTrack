@@ -2304,6 +2304,17 @@ function moveFpToToday(id) {
   if (activeTab === 4) renderFuturePlansTab();
 }
 
+function moveFpToTomorrow(id) {
+  const p = (data.futurePlans || []).find(x => x.id === id);
+  if (!p) return;
+  if (!data.tomorrowPlans) data.tomorrowPlans = [];
+  data.tomorrowPlans.push({ id: uid(), activity: p.activity, hours: p.hours, category: p.category, futureBenefit: p.impact || '' });
+  data.futurePlans = data.futurePlans.filter(x => x.id !== id);
+  showToast('📅 Added to tomorrow: "' + p.activity.slice(0,28) + '"');
+  saveData();
+  if (activeTab === 4) renderFuturePlansTab();
+}
+
 // ─── Calendar rendering ───────────────────────────────────────
 function fpCalPrev() {
   fpCalMonth--;
@@ -2449,6 +2460,7 @@ function renderFuturePlansTab() {
             <span class="text-xs px-2 py-0.5 rounded-full" style="background:${catColor(p.category)}22;color:${catColor(p.category)}">${esc(p.category)}</span>
           </div>
           <div class="flex gap-1 shrink-0">
+            ${isTmr ? `<button onclick="moveFpToTomorrow('${p.id}')" class="text-indigo-400 hover:text-indigo-300 p-1.5 transition-colors" title="Add to tomorrow's plan"><i class="fas fa-arrow-right text-xs"></i></button>` : ''}
             <button onclick="moveFpToToday('${p.id}')" class="text-zinc-500 hover:text-emerald-400 p-1.5 transition-colors" title="Move to today's plan"><i class="fas fa-calendar-day text-xs"></i></button>
             <button onclick="editFuturePlan('${p.id}')" class="text-zinc-500 hover:text-violet-400 p-1.5 transition-colors" title="Edit"><i class="fas fa-pen text-xs"></i></button>
             <button onclick="deleteFuturePlan('${p.id}')" class="text-zinc-500 hover:text-red-400 p-1.5 transition-colors" title="Delete"><i class="fas fa-trash text-xs"></i></button>
@@ -2983,7 +2995,10 @@ function renderParentDashboard(sonData){
   var now=new Date(),day=now.getDay();
   var mon=new Date(now.getFullYear(),now.getMonth(),now.getDate()-day+(day===0?-6:1));
   var wk=mon.toISOString().slice(0,10);
-  var wl=logs.filter(function(l){if(!l.date)return false;var d=new Date(l.date+'T12:00:00'),dd=d.getDay();return new Date(d.getFullYear(),d.getMonth(),d.getDate()-dd+(dd===0?-6:1)).toISOString().slice(0,10)===wk;});
+  // Rolling 7-day window (more useful than strict Mon-Sun for daily view)
+  var sevenDaysAgo = new Date(); sevenDaysAgo.setDate(sevenDaysAgo.getDate()-6);
+  var sevenDaysStr = sevenDaysAgo.toISOString().slice(0,10);
+  var wl=logs.filter(function(l){return l.date && l.date>=sevenDaysStr && l.date<=new Date().toISOString().slice(0,10);});
   var wh=wl.reduce(function(s,l){return s+(l.hours||0);},0);
   var pct=Math.min(100,Math.round((wh/weekGoal)*100));
   var pts=Math.round(wl.reduce(function(s,l){return s+(l.hours||0)*(CR[l.category]||5);},0));
@@ -2996,6 +3011,13 @@ function renderParentDashboard(sonData){
   var rows=recent.length?recent.map(function(l){var col=CC[l.category]||'#888';
     return '<div style="display:flex;align-items:start;gap:8px;padding:8px 0;border-bottom:1px solid #27272a"><div style="width:7px;height:7px;border-radius:50%;background:'+col+';margin-top:5px;flex-shrink:0"></div><div style="flex:1;min-width:0"><div style="font-size:.85rem;color:#e4e4e7;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(l.activity||'')+'</div><div style="font-size:.75rem;color:#71717a">'+(l.category||'')+' · '+(l.date||'')+'</div></div><div style="font-size:.85rem;color:#a78bfa;flex-shrink:0">'+(l.hours||0)+'h</div></div>';
   }).join(''):'<p style="color:#52525b;font-size:.85rem">No activity logged yet.</p>';
+  // Tomorrow's plans
+  var tmrPlans = sonData.tomorrowPlans || [];
+  var tomorrowStr = (function(){ var t=new Date(); t.setDate(t.getDate()+1); return t.toISOString().slice(0,10); })();
+  // Also include future plans scheduled for tomorrow
+  var fpTmr = (sonData.futurePlans || []).filter(function(p){ return p.date === tomorrowStr; });
+  var allTmr = tmrPlans.concat(fpTmr.map(function(p){ return {activity:p.activity,hours:p.hours,category:p.category,futureBenefit:p.impact||''}; }));
+
   el.innerHTML='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin-bottom:18px">'
     +'<div style="background:#18181b;border-radius:14px;padding:18px"><div style="color:#71717a;font-size:.75rem;margin-bottom:4px">This Week</div><div style="font-size:2rem;font-weight:700;color:#34d399">'+wh.toFixed(1)+'<span style="font-size:.9rem;color:#52525b;font-weight:400"> / '+weekGoal+'h</span></div><div style="height:5px;background:#27272a;border-radius:5px;margin-top:8px;overflow:hidden"><div style="width:'+pct+'%;height:100%;background:#34d399;border-radius:5px"></div></div><div style="color:#34d399;font-size:.75rem;margin-top:4px">'+pct+'% of goal</div></div>'
     +'<div style="background:#18181b;border-radius:14px;padding:18px"><div style="color:#71717a;font-size:.75rem;margin-bottom:4px">Points</div><div style="font-size:2rem;font-weight:700;color:#a78bfa">'+pts+'</div><div style="color:#71717a;font-size:.75rem;margin-top:4px">'+(pts>=300?'✅ Allowance earned!':((300-pts)+' pts needed'))+'</div></div>'
@@ -3003,7 +3025,23 @@ function renderParentDashboard(sonData){
     +'</div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px">'
     +'<div style="background:#18181b;border-radius:14px;padding:18px"><h3 style="font-size:.9rem;font-weight:600;margin:0 0 12px;color:#f4f4f5">By Category</h3>'+catBars+'</div>'
     +'<div style="background:#18181b;border-radius:14px;padding:18px"><h3 style="font-size:.9rem;font-weight:600;margin:0 0 12px;color:#f4f4f5">Recent Activity</h3>'+rows+'</div>'
-    +'</div>';
+    +'</div>'
+    + (allTmr.length ? (
+        '<div style="margin-top:16px">'
+        + '<div style="background:#18181b;border-radius:14px;padding:18px">'
+        + '<h3 style="font-size:.9rem;font-weight:600;margin:0 0 12px;color:#f4f4f5;display:flex;align-items:center;gap:8px"><i class="fas fa-moon" style="color:#818cf8"></i> Tomorrow's Plan</h3>'
+        + allTmr.map(function(p){
+            var col=CC[p.category]||'#888';
+            return '<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid #27272a">'
+              +'<div style="width:7px;height:7px;border-radius:50%;background:'+col+';flex-shrink:0"></div>'
+              +'<div style="flex:1;font-size:.85rem;color:#e4e4e7">'+(p.activity||'')+'</div>'
+              +'<div style="font-size:.8rem;color:#a1a1aa;flex-shrink:0">'+(p.hours||0)+'h</div>'
+              +'</div>';
+          }).join('')
+        + '</div>'
+        + '</div>'
+      ) : '')
+    ;
 }
 
 // ── PWA service worker ────────────────────────────────────────
