@@ -2868,60 +2868,6 @@ function renderPointsSummary(){
 // renderAll defined above — duplicate removed
 
 // ─── Boot ─────────────────────────────────────────────────────
-window.onload=function(){
-  switchTab(0);
-  setMode('log');
-  updateFutureImpactHint();
-  autoMoveTomorrowPlans();
-  scheduleMidnightCheck();
-  // Swipe support
-  var wrapper=document.getElementById('tab-contents-wrapper');
-  if(wrapper){
-    var sx=0,sy=0;
-    wrapper.addEventListener('touchstart',function(e){sx=e.touches[0].clientX;sy=e.touches[0].clientY;},{passive:true});
-    wrapper.addEventListener('touchend',function(e){
-      var dx=e.changedTouches[0].clientX-sx,dy=e.changedTouches[0].clientY-sy;
-      if(Math.abs(dx)>50&&Math.abs(dx)>Math.abs(dy)*1.5){
-        var tabs=[0,1,2,3,4,5,6,7];
-        if(document.getElementById('tab-parent')&&document.getElementById('tab-parent').style.display!=='none')tabs.push(8);
-        var ci=tabs.indexOf(_activeTab);
-        if(dx<0&&ci<tabs.length-1)switchTab(tabs[ci+1],'right');
-        else if(dx>0&&ci>0)switchTab(tabs[ci-1],'left');
-      }
-    },{passive:true});
-  }
-};
-</script>
-
-
-<!-- /tab-contents-wrapper -->
-<script>
-function exportLynxBackup(){
- const data={};
- for(let i=0;i<localStorage.length;i++){
-   const k=localStorage.key(i);
-   data[k]=localStorage.getItem(k);
- }
- const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
- const a=document.createElement('a');
- a.href=URL.createObjectURL(blob);
- a.download='LynxTrack_v6_Backup.json';
- a.click();
-}
-function restoreLynxBackup(){
- const f=document.getElementById('restoreFile').files[0];
- if(!f) return alert('Select a backup file first');
- const r=new FileReader();
- r.onload=e=>{
-   const data=JSON.parse(e.target.result);
-   Object.keys(data).forEach(k=>localStorage.setItem(k,data[k]));
-   alert('Backup restored. Reload page.');
- };
- r.readAsText(f);
-}
-</script>
-
-</div><!-- /main-app -->
 
 <script>
 // ── calcPts ──────────────────────────────────────────────────
@@ -3029,7 +2975,7 @@ function renderParentDashboard(sonData){
     + (allTmr.length ? (
         '<div style="margin-top:16px">'
         + '<div style="background:#18181b;border-radius:14px;padding:18px">'
-        + '<h3 style="font-size:.9rem;font-weight:600;margin:0 0 12px;color:#f4f4f5;display:flex;align-items:center;gap:8px"><i class="fas fa-moon" style="color:#818cf8"></i> Tomorrow's Plan</h3>'
+        + '<h3 style="font-size:.9rem;font-weight:600;margin:0 0 12px;color:#f4f4f5;display:flex;align-items:center;gap:8px"><i class="fas fa-moon" style="color:#818cf8"></i> Tomorrow Plan</h3>'
         + allTmr.map(function(p){
             var col=CC[p.category]||'#888';
             return '<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid #27272a">'
@@ -3054,6 +3000,62 @@ if('serviceWorker' in navigator){
   navigator.serviceWorker.register(URL.createObjectURL(new Blob([swc],{type:'application/javascript'}))).catch(function(){});
 }
 </script>
+
+window.onload=function(){
+  switchTab(0);
+  setMode('log');
+  updateFutureImpactHint();
+  autoMoveTomorrowPlans();
+  scheduleMidnightCheck();
+  // Swipe support
+  var wrapper=document.getElementById('tab-contents-wrapper');
+  if(wrapper){
+    var sx=0,sy=0;
+    wrapper.addEventListener('touchstart',function(e){sx=e.touches[0].clientX;sy=e.touches[0].clientY;},{passive:true});
+    wrapper.addEventListener('touchend',function(e){
+      var dx=e.changedTouches[0].clientX-sx,dy=e.changedTouches[0].clientY-sy;
+      if(Math.abs(dx)>50&&Math.abs(dx)>Math.abs(dy)*1.5){
+        var tabs=[0,1,2,3,4,5,6,7];
+        if(document.getElementById('tab-parent')&&document.getElementById('tab-parent').style.display!=='none')tabs.push(8);
+        var ci=tabs.indexOf(_activeTab);
+        if(dx<0&&ci<tabs.length-1)switchTab(tabs[ci+1],'right');
+        else if(dx>0&&ci>0)switchTab(tabs[ci-1],'left');
+      }
+    },{passive:true});
+  }
+};
+</script>
+
+
+<!-- /tab-contents-wrapper -->
+<script>
+function exportLynxBackup(){
+ const data={};
+ for(let i=0;i<localStorage.length;i++){
+   const k=localStorage.key(i);
+   data[k]=localStorage.getItem(k);
+ }
+ const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+ const a=document.createElement('a');
+ a.href=URL.createObjectURL(blob);
+ a.download='LynxTrack_v6_Backup.json';
+ a.click();
+}
+function restoreLynxBackup(){
+ const f=document.getElementById('restoreFile').files[0];
+ if(!f) return alert('Select a backup file first');
+ const r=new FileReader();
+ r.onload=e=>{
+   const data=JSON.parse(e.target.result);
+   Object.keys(data).forEach(k=>localStorage.setItem(k,data[k]));
+   alert('Backup restored. Reload page.');
+ };
+ r.readAsText(f);
+}
+</script>
+
+</div><!-- /main-app -->
+
 
 </body>
 </html>
