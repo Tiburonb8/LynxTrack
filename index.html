@@ -2869,7 +2869,8 @@ function renderPointsSummary(){
 
 // ─── Boot ─────────────────────────────────────────────────────
 
-<script>
+
+
 // ── calcPts ──────────────────────────────────────────────────
 const CAT_RATES={Career:8,Learning:7,Fitness:5,Working:6,'Personal/Family':4,Volunteering:6,'Me Time':3};
 function calcPts(hours,cat){return Math.round((hours||0)*(CAT_RATES[cat]||5));}
@@ -2999,7 +3000,7 @@ if('serviceWorker' in navigator){
   ].join('\n');
   navigator.serviceWorker.register(URL.createObjectURL(new Blob([swc],{type:'application/javascript'}))).catch(function(){});
 }
-</script>
+
 
 window.onload=function(){
   switchTab(0);
