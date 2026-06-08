@@ -1838,28 +1838,45 @@ function renderImprovedCalendar() {
   }
 
   // Actual days
+  const todayStr = localDateStr();
   for (let day = 1; day <= daysInMonth; day++) {
     const dateStr = `${calYear}-${String(calMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    const isToday = dateStr === todayStr;
+    const isPast = dateStr < todayStr;
     
-    const hasFuturePlan = data.futurePlans.some(p => p.date === dateStr);
-    const hasRecurring = data.recurringTasks && data.recurringTasks.some(r => isRecurringOnDate(r, dateStr));
+    const recForDay = (data.recurringTasks || []).filter(r => isRecurringOnDate(r, dateStr));
+    const plansForDay = (data.futurePlans || []).filter(p => p.date === dateStr);
+    const hasAnything = plansForDay.length > 0 || recForDay.length > 0;
 
     const cell = document.createElement('div');
-    cell.className = `h-28 bg-zinc-900 hover:bg-zinc-800 rounded-2xl p-3 flex flex-col cursor-pointer transition-colors border ${hasFuturePlan || hasRecurring ? 'border-emerald-400' : 'border-transparent'}`;
-    
-    // Get recurring task names for this date
-    const recForDay = (data.recurringTasks || []).filter(r => isRecurringOnDate(r, dateStr));
-    const plansForDay = data.futurePlans.filter(p => p.date === dateStr);
-    
-    cell.innerHTML = `
-      <div class="text-right text-sm ${hasFuturePlan || hasRecurring ? 'text-emerald-400 font-bold' : 'text-zinc-400'}">${day}</div>
-      <div class="mt-1 space-y-0.5 overflow-hidden">
-        ${plansForDay.slice(0,2).map(p => `<div class="text-xs bg-emerald-900 text-emerald-300 rounded px-1 truncate">${esc(p.activity||p.title||'Plan')}</div>`).join('')}
-        ${recForDay.slice(0,2).map(r => `<div class="text-xs bg-violet-900 text-violet-300 rounded px-1 truncate"><i class="fas fa-repeat" style="font-size:8px"></i> ${esc(r.title||'Recurring')}</div>`).join('')}
-        ${(plansForDay.length + recForDay.length) > 4 ? `<div class="text-xs text-zinc-500">+${(plansForDay.length + recForDay.length - 4)} more</div>` : ''}
-      </div>
-    `;
-    
+    // Use direct style instead of Tailwind (JIT can't scan runtime strings)
+    cell.style.cssText = [
+      'border-radius:12px',
+      'padding:8px',
+      'min-height:80px',
+      'display:flex',
+      'flex-direction:column',
+      'cursor:pointer',
+      'position:relative',
+      'transition:background .15s',
+      isToday ? 'background:#4c1d95' : isPast ? 'background:#111113' : 'background:#18181b',
+      isToday ? 'outline:3px solid #a78bfa;outline-offset:-2px' : hasAnything ? 'outline:1px solid #34d399;outline-offset:-1px' : 'outline:1px solid #27272a;outline-offset:-1px'
+    ].join(';');
+
+    const numColor = isToday ? '#e9d5ff' : isPast ? '#3f3f46' : hasAnything ? '#34d399' : '#71717a';
+    const planPillStyle = 'font-size:.7rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;background:rgba(16,185,129,.15);color:#6ee7b7;border-radius:4px;padding:1px 4px;margin-bottom:2px';
+    const recPillStyle = 'font-size:.7rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;background:rgba(109,40,217,.2);color:#c4b5fd;border-radius:4px;padding:1px 4px;margin-bottom:2px';
+
+    let html = '<div style="text-align:right;font-size:.8rem;font-weight:700;color:' + numColor + '">' + day;
+    if (isToday) html += ' <span style="font-size:.6rem;background:#7c3aed;color:white;border-radius:4px;padding:0 3px;vertical-align:middle">TODAY</span>';
+    html += '</div>';
+    html += '<div style="margin-top:3px;overflow:hidden;flex:1">';
+    plansForDay.slice(0,2).forEach(p => { html += '<div style="' + planPillStyle + '">' + esc(p.activity||'Plan') + '</div>'; });
+    recForDay.slice(0, plansForDay.length >= 2 ? 0 : 2 - plansForDay.length).forEach(r => { html += '<div style="' + recPillStyle + '"><i class="fas fa-repeat" style="font-size:7px"></i> ' + esc(r.title||'Recurring') + '</div>'; });
+    if (plansForDay.length + recForDay.length > 4) html += '<div style="font-size:.65rem;color:#52525b">+' + (plansForDay.length + recForDay.length - 4) + ' more</div>';
+    html += '</div>';
+
+    cell.innerHTML = html;
     cell.onclick = () => openFuturePlanForDate(dateStr);
     grid.appendChild(cell);
   }
