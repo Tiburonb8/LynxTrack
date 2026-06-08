@@ -1375,12 +1375,35 @@ function renderTomorrowPlans(){
   const container=document.getElementById('tomorrow-plans-list');
   if(!container)return;
   let total=0;
-  if(!data.tomorrowPlans.length){
-    container.innerHTML=`<p class="text-zinc-500 py-8 text-center text-sm">No plans yet. Add below.</p>`;
+  // Get future plans scheduled for tomorrow
+  const tmrStr=(()=>{const t=new Date();t.setDate(t.getDate()+1);return localDateStr(t);})();
+  const fpTmr=(data.futurePlans||[]).filter(p=>p.date===tmrStr);
+
+  if(!data.tomorrowPlans.length && !fpTmr.length){
+    container.innerHTML=`<p class="text-zinc-500 py-8 text-center text-sm">No plans yet. Add below or schedule in Future Plans.</p>`;
     document.getElementById('tomorrow-total').textContent='0h';
     return;
   }
-  container.innerHTML=data.tomorrowPlans.map(p=>{
+  // Show Future Plans for tomorrow first (read-only preview)
+  let fpSection = '';
+  if (fpTmr.length) {
+    fpSection = '<div class="mb-3">'
+      + '<div class="text-xs text-zinc-500 font-semibold uppercase tracking-wide mb-2">From Future Plans</div>'
+      + fpTmr.map(p => {
+          const col = catColor(p.category);
+          total += p.hours;
+          return '<div class="flex items-center gap-3 bg-indigo-950 border border-indigo-800 rounded-2xl p-3 mb-1.5">'
+            + '<div class="font-mono text-lg font-bold text-indigo-400 w-10 shrink-0">' + p.hours + 'h</div>'
+            + '<div class="flex-1 min-w-0">'
+            + '<p class="font-medium text-sm truncate">' + esc(p.activity) + '</p>'
+            + '<span class="text-xs px-2 py-0.5 rounded-full" style="background:' + col + '22;color:' + col + '">' + esc(p.category) + '</span>'
+            + '</div>'
+            + '<button onclick="moveFpToTomorrow('' + p.id + '')" title="Add to tomorrow plan" style="background:#4f46e5;border:none;color:white;padding:4px 10px;border-radius:8px;cursor:pointer;font-size:.75rem">+ Add</button>'
+            + '</div>';
+        }).join('')
+      + '</div>';
+  }
+  container.innerHTML=fpSection+(data.tomorrowPlans.length?'':'')+data.tomorrowPlans.map(p=>{
     total+=p.hours;
     const col=catColor(p.category);
     return `<div class="flex items-start gap-4 bg-zinc-800 rounded-2xl p-4">
@@ -2356,20 +2379,42 @@ function renderFpCalendar() {
     const ds = `${fpCalYear}-${String(fpCalMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
     const isToday = ds === today;
     const isSelected = ds === fpSelectedDate;
-    const hasPlan = planDates.has(ds);
-    const planCount = plans.filter(p => p.date === ds).length;
+    const dayPlans = plans.filter(p => p.date === ds);
+    const hasPlan = dayPlans.length > 0;
     const isPast = ds < today;
+    // Also check recurring tasks for this date
+    const recPlans = (data.recurringTasks || []).filter(r => isRecurringOnDate(r, ds));
+    const hasRec = recPlans.length > 0;
+    const hasAnything = hasPlan || hasRec;
 
-    let cls = 'relative text-center text-sm py-2 rounded-xl cursor-pointer transition-colors ';
-    if (isSelected) cls += 'bg-emerald-600 text-white font-bold ';
-    else if (isToday) cls += 'bg-violet-700 text-white font-semibold ';
-    else if (isPast) cls += 'text-zinc-600 ';
-    else cls += 'hover:bg-zinc-800 text-zinc-300 ';
+    let cls = 'relative text-sm rounded-xl cursor-pointer transition-colors p-1.5 min-h-14 flex flex-col ';
+    if (isSelected) cls += 'bg-emerald-600 text-white font-bold ring-2 ring-emerald-300 ';
+    else if (isToday) cls += 'bg-violet-700 text-white font-semibold ring-2 ring-violet-400 ';
+    else if (isPast) cls += 'bg-zinc-900 text-zinc-500 ';
+    else cls += 'bg-zinc-900 hover:bg-zinc-800 text-zinc-300 ';
 
-    const dot = hasPlan ? `<span class="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full ${isSelected?'bg-white':'bg-emerald-400'}"></span>` : '';
-    const badge = hasPlan && planCount > 0 ? `<span class="absolute top-0.5 right-0.5 text-xs leading-none ${isSelected?'text-emerald-200':'text-emerald-400'} font-bold">${planCount}</span>` : '';
+    // Day number
+    let inner = `<div class="text-right text-xs font-semibold mb-0.5">${d}</div>`;
 
-    html += `<div class="${cls}" onclick="fpSelectDate('${ds}')">${d}${dot}${badge}</div>`;
+    // Show plan activity names (up to 2)
+    if (hasPlan) {
+      const textCol = isSelected ? 'text-emerald-100' : isToday ? 'text-violet-100' : isPast ? 'text-zinc-500' : 'text-emerald-300';
+      dayPlans.slice(0, 2).forEach(p => {
+        inner += `<div class="text-xs truncate leading-tight ${textCol}">${esc(p.activity)}</div>`;
+      });
+      if (dayPlans.length > 2) {
+        inner += `<div class="text-xs ${textCol} opacity-70">+${dayPlans.length - 2} more</div>`;
+      }
+    }
+    // Show recurring (up to 1 if space)
+    if (hasRec && dayPlans.length < 2) {
+      const recCol = isSelected ? 'text-white opacity-70' : isToday ? 'text-violet-200 opacity-80' : 'text-violet-400 opacity-70';
+      recPlans.slice(0, 1).forEach(r => {
+        inner += `<div class="text-xs truncate leading-tight ${recCol}"><i class="fas fa-repeat" style="font-size:8px"></i> ${esc(r.title)}</div>`;
+      });
+    }
+
+    html += `<div class="${cls}" onclick="fpSelectDate('${ds}')">${inner}</div>`;
   }
 
   // Fill remaining
