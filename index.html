@@ -1067,6 +1067,7 @@ function switchTab(n,dir){
   if(next){
     next.classList.add('tab-visible');
   }
+  if(n===1)renderTomorrowPlans();
   if(n===2)renderAnalytics();
   if(n===3){_histDate=localDateStr();renderHistory();}
   if(n===4)renderImprovedCalendar();
@@ -2387,34 +2388,35 @@ function renderFpCalendar() {
     const hasRec = recPlans.length > 0;
     const hasAnything = hasPlan || hasRec;
 
-    let cls = 'relative text-sm rounded-xl cursor-pointer transition-colors p-1.5 min-h-14 flex flex-col ';
-    if (isSelected) cls += 'bg-emerald-600 text-white font-bold ring-2 ring-emerald-300 ';
-    else if (isToday) cls += 'bg-violet-700 text-white font-semibold ring-2 ring-violet-400 ';
-    else if (isPast) cls += 'bg-zinc-900 text-zinc-500 ';
-    else cls += 'bg-zinc-900 hover:bg-zinc-800 text-zinc-300 ';
+    var bgColor = isSelected ? '#059669' : isToday ? '#6d28d9' : '#18181b';
+    let cls = 'fp-cal-cell';
+    cellStyle = 'background:' + bgColor + ';border-radius:10px;cursor:pointer;padding:6px;min-height:56px;display:flex;flex-direction:column;position:relative;';
+    if (isToday) cellStyle += 'outline:3px solid #a78bfa;outline-offset:-2px;';
+    else if (isSelected) cellStyle += 'outline:2px solid #6ee7b7;outline-offset:-2px;';
 
     // Day number
-    let inner = `<div class="text-right text-xs font-semibold mb-0.5">${d}</div>`;
+    const numColor = isToday ? '#e9d5ff' : isSelected ? 'white' : isPast ? '#52525b' : '#a1a1aa';
+    let inner = '<div style="text-align:right;font-size:.75rem;font-weight:600;margin-bottom:2px;color:' + numColor + '">' + d + '</div>';
 
     // Show plan activity names (up to 2)
     if (hasPlan) {
-      const textCol = isSelected ? 'text-emerald-100' : isToday ? 'text-violet-100' : isPast ? 'text-zinc-500' : 'text-emerald-300';
-      dayPlans.slice(0, 2).forEach(p => {
-        inner += `<div class="text-xs truncate leading-tight ${textCol}">${esc(p.activity)}</div>`;
+      var actColor = isSelected ? '#d1fae5' : isToday ? '#ede9fe' : isPast ? '#52525b' : '#6ee7b7';
+      dayPlans.slice(0, 2).forEach(function(p) {
+        inner += '<div style="font-size:.7rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;background:rgba(0,0,0,.3);border-radius:4px;padding:1px 4px;margin-bottom:2px;color:' + actColor + '">' + esc(p.activity) + '</div>';
       });
       if (dayPlans.length > 2) {
-        inner += `<div class="text-xs ${textCol} opacity-70">+${dayPlans.length - 2} more</div>`;
+        inner += '<div style="font-size:.65rem;color:' + actColor + ';opacity:.7">+' + (dayPlans.length - 2) + ' more</div>';
       }
     }
     // Show recurring (up to 1 if space)
     if (hasRec && dayPlans.length < 2) {
-      const recCol = isSelected ? 'text-white opacity-70' : isToday ? 'text-violet-200 opacity-80' : 'text-violet-400 opacity-70';
-      recPlans.slice(0, 1).forEach(r => {
-        inner += `<div class="text-xs truncate leading-tight ${recCol}"><i class="fas fa-repeat" style="font-size:8px"></i> ${esc(r.title)}</div>`;
+      var recColor = isSelected ? 'rgba(255,255,255,.8)' : isToday ? '#c4b5fd' : '#a78bfa';
+      recPlans.slice(0, 1).forEach(function(r) {
+        inner += '<div style="font-size:.7rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;background:rgba(109,40,217,.25);border-radius:4px;padding:1px 4px;margin-bottom:2px;color:' + recColor + '"><i class="fas fa-repeat" style="font-size:7px"></i> ' + esc(r.title) + '</div>';
       });
     }
 
-    html += `<div class="${cls}" onclick="fpSelectDate('${ds}')">${inner}</div>`;
+    html += '<div class="' + cls + '" style="' + cellStyle + '" onclick="fpSelectDate(\'' + ds + '\')">' + inner + '</div>';
   }
 
   // Fill remaining
