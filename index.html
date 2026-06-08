@@ -15,6 +15,10 @@
 <script>
 const firebaseConfig={apiKey:"AIzaSyCrf5ZbpFRGbXr-0jPIzjra86xp0EIgmuw",authDomain:"lynxtrack-7d050.firebaseapp.com",projectId:"lynxtrack-7d050",storageBucket:"lynxtrack-7d050.firebasestorage.app",messagingSenderId:"448796703778",appId:"1:448796703778:web:ca9fbe8d5b58086305de7b"};
 firebase.initializeApp(firebaseConfig);
+// Ensure data exists before any callbacks fire
+if(typeof data === 'undefined'){
+  window.data = { logs:[], tasks:[], tomorrowPlans:[], futurePlans:[], goals:[], weekGoal:40, submissions:[], badges:[], weeklyPointsHistory:[], planEvents:[], recurringTasks:[] };
+}
 const _auth=firebase.auth();
 const _db=firebase.firestore();
 const PARENT1_UID="VK7a9Fx1TjcwHRSEe26nkHu1nHp1";
@@ -40,7 +44,7 @@ _auth.onAuthStateChanged(function(user){
           if(s.logs)s.logs.forEach(function(l){if(!l.id)l.id=uid();});
           if(s.tasks)s.tasks.forEach(function(t){if(!t.id)t.id=uid();});
           if(s.tomorrowPlans)s.tomorrowPlans.forEach(function(t){if(!t.id)t.id=uid();});
-          if(typeof data!=="undefined"){data=Object.assign({},data,s);}else{console.warn("data not ready yet");return;}
+          data=Object.assign({},data,s);
           if(!data.badges)data.badges=[];
           if(!data.weeklyPointsHistory)data.weeklyPointsHistory=[];
           if(!data.planEvents)data.planEvents=[];
@@ -1606,49 +1610,6 @@ function renderHistory(){
     }
   }
   container.innerHTML = html;
-}
-  const container=document.getElementById('history');if(!container)return;
-  const q=(document.getElementById('history-search')?.value||'').toLowerCase();
-  if(typeof _histDate==='undefined')window._histDate=localDateStr();
-  // Update nav
-  var nextBtn=document.getElementById('hist-next-btn');
-  if(nextBtn)nextBtn.style.opacity=(_histDate>=localDateStr())?'0.3':'1';
-  var labelEl=document.getElementById('hist-day-label');
-  var statsEl=document.getElementById('hist-day-stats');
-  if(labelEl&&!q){
-    var d=new Date(_histDate+'T12:00:00');
-    var isToday=_histDate===localDateStr();
-    var yStr=new Date();yStr.setDate(yStr.getDate()-1);var isYest=_histDate===yStr.toISOString().slice(0,10);
-    var dns=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
-    var mns=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    labelEl.textContent=isToday?'Today':isYest?'Yesterday':dns[d.getDay()]+', '+mns[d.getMonth()]+' '+d.getDate()+((!isToday&&!isYest)?' '+d.getFullYear():'');
-  }
-  var filtered=q
-    ?data.logs.filter(l=>l.activity.toLowerCase().includes(q)||(l.futureBenefit||'').toLowerCase().includes(q))
-    :data.logs.filter(l=>l.date===_histDate);
-  if(statsEl){
-    if(q){statsEl.textContent=filtered.length+' result'+(filtered.length===1?'':'s');}
-    else{var dh=filtered.reduce(function(s,l){return s+(l.hours||0);},0),dp=filtered.reduce(function(s,l){return s+calcPts(l.hours,l.category);},0);statsEl.textContent=filtered.length?dh.toFixed(1)+'h · '+dp+' pts · '+filtered.length+' activit'+(filtered.length===1?'y':'ies'):'Nothing logged';}
-  }
-  container.innerHTML=filtered.length
-    ?filtered.map(log=>`
-      <div class="bg-zinc-900 rounded-3xl p-5">
-        <div class="flex justify-between text-xs text-zinc-500 mb-2">
-          <span>${q?log.date:''}</span>
-          <div class="flex items-center gap-2">
-            <span class="px-2 py-0.5 rounded-full" style="background:${catColor(log.category)}22;color:${catColor(log.category)}">${esc(log.category||'')}</span>
-            <span class="font-mono">${log.hours}h</span>
-            <span class="font-semibold text-violet-400">+${calcPts(log.hours,log.category)}pts</span>
-          </div>
-        </div>
-        <div class="font-medium">${esc(log.activity)}</div>
-        <div class="text-xs text-emerald-300 mt-2">${esc(log.futureBenefit||'')}</div>
-        <div class="flex items-center gap-2 mt-3 flex-wrap">
-          <button onclick="openHistModal('${log.id}')" class="plan-action-btn text-violet-300 border-violet-800 hover:bg-violet-950"><i class="fas fa-redo" style="font-size:9px"></i> Re-use</button>
-          <button onclick="deleteLog('${log.id}')" class="plan-action-btn text-zinc-500 border-zinc-700 hover:text-red-400 hover:border-red-800"><i class="fas fa-trash" style="font-size:9px"></i> Delete</button>
-        </div>
-      </div>`).join('')
-    :`<p class="col-span-full text-center py-16 text-zinc-500">${q?'No results.':_histDate===localDateStr()?'Nothing logged today.':'Nothing logged on this day.'}</p>`;
 }
 
 // ─── Analytics ────────────────────────────────────────────────
