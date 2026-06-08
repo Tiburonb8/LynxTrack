@@ -1389,8 +1389,8 @@ function renderTomorrowPlans(){
   if (fpTmr.length) {
     fpSection = '<div class="mb-3">'
       + '<div class="text-xs text-zinc-500 font-semibold uppercase tracking-wide mb-2">From Future Plans</div>'
-      + fpTmr.map(p => {
-          const col = catColor(p.category);
+      + fpTmr.map(function(p) {
+          var col = catColor(p.category);
           total += p.hours;
           return '<div class="flex items-center gap-3 bg-indigo-950 border border-indigo-800 rounded-2xl p-3 mb-1.5">'
             + '<div class="font-mono text-lg font-bold text-indigo-400 w-10 shrink-0">' + p.hours + 'h</div>'
@@ -1398,7 +1398,7 @@ function renderTomorrowPlans(){
             + '<p class="font-medium text-sm truncate">' + esc(p.activity) + '</p>'
             + '<span class="text-xs px-2 py-0.5 rounded-full" style="background:' + col + '22;color:' + col + '">' + esc(p.category) + '</span>'
             + '</div>'
-            + '<button onclick="moveFpToTomorrow('' + p.id + '')" title="Add to tomorrow plan" style="background:#4f46e5;border:none;color:white;padding:4px 10px;border-radius:8px;cursor:pointer;font-size:.75rem">+ Add</button>'
+            + '<button data-fpid="' + p.id + '" class="fp-tmr-add" style="background:#4f46e5;border:none;color:white;padding:4px 10px;border-radius:8px;cursor:pointer;font-size:.75rem">+ Add</button>'
             + '</div>';
         }).join('')
       + '</div>';
@@ -2956,12 +2956,21 @@ function scheduleMidnightCheck(){
 
 // ── History delegated click handler ─────────────────────────
 document.addEventListener('click', function(e){
+  // History re-use/delete
   var btn = e.target.closest('[data-action]');
-  if(!btn) return;
-  var id = btn.getAttribute('data-id');
-  var action = btn.getAttribute('data-action');
-  if(action === 'reuse') openHistModal(id);
-  if(action === 'delete') deleteLog(id);
+  if(btn) {
+    var id = btn.getAttribute('data-id');
+    var action = btn.getAttribute('data-action');
+    if(action === 'reuse') openHistModal(id);
+    if(action === 'delete') deleteLog(id);
+    return;
+  }
+  // Future Plan to Tomorrow add button
+  var fpBtn = e.target.closest('.fp-tmr-add');
+  if(fpBtn) {
+    var fpid = fpBtn.getAttribute('data-fpid');
+    if(fpid) moveFpToTomorrow(fpid);
+  }
 });
 
 // ── History day navigation ────────────────────────────────────
