@@ -2465,6 +2465,19 @@ function renderFpCalendar() {
     html += '<div class="' + cls + '" style="' + cellStyle + '" onclick="fpSelectDate(\'' + ds + '\')">' + inner + '</div>';
   }
 
+  // Apply today highlight AFTER all cells are appended (ensures it's last)
+  const allCells = grid.querySelectorAll('div');
+  // The first firstDay cells are empty fillers
+  const todayCellIndex = firstDay + (parseInt(todayStr.slice(-2)) - 1);
+  if (todayStr.slice(0, 7) === (calYear + '-' + String(calMonth+1).padStart(2,'0'))) {
+    const todayCell = allCells[todayCellIndex];
+    if (todayCell) {
+      todayCell.style.background = '#4c1d95';
+      todayCell.style.outline = '3px solid #a78bfa';
+      todayCell.style.outlineOffset = '-2px';
+    }
+  }
+
   // Fill remaining
   const total = firstDay + daysInMonth;
   const remaining = total % 7 === 0 ? 0 : 7 - (total % 7);
