@@ -1517,9 +1517,12 @@ function renderGoals(){
 
 // ─── Week summary ─────────────────────────────────────────────
 function getWeekLogs(){
-  const logs=[];
-  for(let i=0;i<7;i++){const d=new Date();d.setDate(d.getDate()-i);logs.push(...data.logs.filter(l=>l.date===localDateStr(d)));}
-  return logs;
+  // Calendar week: Monday 12:00am through Sunday 11:59pm (local time)
+  const now=new Date(),day=now.getDay();
+  const mon=new Date(now.getFullYear(),now.getMonth(),now.getDate()-((day+6)%7));
+  const weekDates=[];
+  for(let i=0;i<7;i++){const d=new Date(mon);d.setDate(mon.getDate()+i);weekDates.push(localDateStr(d));}
+  return data.logs.filter(l=>weekDates.includes(l.date));
 }
 function renderWeekSummary(){
   const wl=getWeekLogs();
@@ -3058,11 +3061,11 @@ function renderParentDashboard(sonData){
   var CC={Career:'#fb923c',Learning:'#a78bfa',Fitness:'#38bdf8',Working:'#34d399','Personal/Family':'#f472b6',Volunteering:'#4ade80','Me Time':'#fbbf24'};
   var now=new Date(),day=now.getDay();
   var mon=new Date(now.getFullYear(),now.getMonth(),now.getDate()-day+(day===0?-6:1));
-  var wk=mon.toISOString().slice(0,10);
-  // Rolling 7-day window (more useful than strict Mon-Sun for daily view)
-  var sevenDaysAgo = new Date(); sevenDaysAgo.setDate(sevenDaysAgo.getDate()-6);
-  var sevenDaysStr = sevenDaysAgo.toISOString().slice(0,10);
-  var wl=logs.filter(function(l){return l.date && l.date>=sevenDaysStr && l.date<=new Date().toISOString().slice(0,10);});
+  var wk=localDateStr(mon);
+  // Calendar week: Monday 12:00am through Sunday 11:59pm (local time)
+  var sun=new Date(mon); sun.setDate(mon.getDate()+6);
+  var sunStr=localDateStr(sun);
+  var wl=logs.filter(function(l){return l.date && l.date>=wk && l.date<=sunStr;});
   var wh=wl.reduce(function(s,l){return s+(l.hours||0);},0);
   var pct=Math.min(100,Math.round((wh/weekGoal)*100));
   var pts=Math.round(wl.reduce(function(s,l){return s+(l.hours||0)*(CR[l.category]||5);},0));
