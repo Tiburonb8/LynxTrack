@@ -1939,21 +1939,23 @@ function openFuturePlanForDate(dateStr) {
 }
 
 // ─── Submit Log ───────────────────────────────────────────────
-function getWeekKey(){
-  const d=new Date(),jan4=new Date(d.getFullYear(),0,4),s1=new Date(jan4);
+// weekKeyForDate: ISO-style Mon–Sun week number. IMPORTANT: `d` must be
+// normalized to midnight first — if it carries a time-of-day component
+// (e.g. "right now", or a noon-anchored log date), the old Math.ceil-based
+// formula rounds the LAST day of the week (Sunday) into the NEXT week,
+// a full day early. Stripping to midnight + Math.floor fixes that.
+function weekKeyForDate(dIn){
+  const d=new Date(dIn.getFullYear(),dIn.getMonth(),dIn.getDate()); // strip time-of-day
+  const jan4=new Date(d.getFullYear(),0,4),s1=new Date(jan4);
   s1.setDate(jan4.getDate()-((jan4.getDay()+6)%7));
-  const wn=Math.ceil(((d-s1)/86400000+1)/7);
+  const wn=Math.floor((d-s1)/86400000/7)+1;
   return d.getFullYear()+'-W'+String(wn).padStart(2,'0');
 }
+function getWeekKey(){ return weekKeyForDate(new Date()); }
 function daysUntilSunday(){ const day=new Date().getDay();return day===0?0:7-day; }
 function isWeekSubmitted(wk){ return (data.submissions||[]).some(s=>s.weekKey===wk); }
 function getWeekLogsForKey(wk){
-  return data.logs.filter(l=>{
-    const d=new Date(l.date+'T12:00:00'),jan4=new Date(d.getFullYear(),0,4),s1=new Date(jan4);
-    s1.setDate(jan4.getDate()-((jan4.getDay()+6)%7));
-    const wn=Math.ceil(((d-s1)/86400000+1)/7);
-    return d.getFullYear()+'-W'+String(wn).padStart(2,'0')===wk;
-  });
+  return data.logs.filter(l=>weekKeyForDate(new Date(l.date+'T12:00:00'))===wk);
 }
 function renderSubmitBanner(){
   const banner=document.getElementById('submit-banner'),btn=document.getElementById('submit-btn'),lbl=document.getElementById('submit-btn-label');
