@@ -363,6 +363,9 @@ function loadSonData(){
     <button id="submit-btn" onclick="openSubmitModal()" class="px-3 py-1.5 text-xs bg-emerald-900 hover:bg-emerald-800 text-emerald-400 rounded-xl flex items-center gap-1.5">
       <i class="fas fa-paper-plane" style="font-size:.75rem"></i> <span id="submit-btn-label">Submit Log</span>
     </button>
+    <button onclick="exportData()" class="px-3 py-1.5 text-xs bg-sky-950 hover:bg-sky-900 text-sky-400 rounded-xl flex items-center gap-1.5">
+      <i class="fas fa-download" style="font-size:.75rem"></i> Export Data
+    </button>
     <button onclick="resetAllData()" class="px-3 py-1.5 text-xs bg-zinc-900 hover:bg-red-950 text-red-400 rounded-xl flex items-center gap-1.5">
       <i class="fas fa-trash" style="font-size:.75rem"></i> Clear All
     </button>
@@ -2588,6 +2591,36 @@ function resetAllData(){
   data={logs:[],tasks:[],tomorrowPlans:[],futurePlans:[],goals:[...DEFAULT_GOALS],weekGoal:40,submissions:[],badges:[],weeklyPointsHistory:[],planEvents:[],recurringTasks:[]};
   document.getElementById('week-goal-input').value=40;
   showToast('🗑️ All data cleared.');renderAll();
+}
+
+// ─── Export Data (full backup / audit snapshot as JSON) ────────
+function exportData(){
+  const exportObj={
+    exportedAt:new Date().toISOString(),
+    exportedForUid:_currentUser?_currentUser.uid:null,
+    exportedForUser:_currentUser?(_currentUser.displayName||_currentUser.email):null,
+    weekGoal:data.weekGoal,
+    logs:data.logs||[],
+    tasks:data.tasks||[],
+    tomorrowPlans:data.tomorrowPlans||[],
+    futurePlans:data.futurePlans||[],
+    goals:data.goals||[],
+    submissions:data.submissions||[],
+    badges:data.badges||[],
+    weeklyPointsHistory:data.weeklyPointsHistory||[],
+    planEvents:data.planEvents||[],
+    recurringTasks:data.recurringTasks||[]
+  };
+  const blob=new Blob([JSON.stringify(exportObj,null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;
+  a.download='lynxtrack-export-'+localDateStr()+'.json';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+  showToast('📦 Data exported — check your downloads.');
 }
 
 // ─── Live Points Widget ───────────────────────────────────────
