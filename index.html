@@ -26,6 +26,31 @@ const PARENT1_UID="VK7a9Fx1TjcwHRSEe26nkHu1nHp1";
 const PARENT2_UID="6SfDo657ShMfRmDV9Iont5LBRtA2";
 const SON_UID="4u6vqWeiu1Uu6qXcuCT35MFQHSs2";
 var _currentUser=null,_unsubscribe=null;
+var _viewingAsSon=false,_ownDataBackup=null;
+
+// Pulled out of onAuthStateChanged so "Return to My View" can re-establish
+// the parent's own live listener after a "View As Son" preview.
+function subscribeOwnData(theUid){
+  if(_unsubscribe)_unsubscribe();
+  _unsubscribe=_db.collection("users").doc(theUid).collection("app").doc("data")
+    .onSnapshot(function(snap){
+      if(_viewingAsSon)return; // don't let our own updates clobber the son-preview
+      if(snap.exists){
+        var s=snap.data();
+        if(s.logs)s.logs.forEach(function(l){if(!l.id)l.id=uid();});
+        if(s.tasks)s.tasks.forEach(function(t){if(!t.id)t.id=uid();});
+        if(s.tomorrowPlans)s.tomorrowPlans.forEach(function(t){if(!t.id)t.id=uid();});
+        data=Object.assign({},data,s);
+        if(!data.badges)data.badges=[];
+        if(!data.weeklyPointsHistory)data.weeklyPointsHistory=[];
+        if(!data.planEvents)data.planEvents=[];
+        if(!data.recurringTasks)data.recurringTasks=[];
+      }
+      if(typeof autoApplyRecurring==="function")autoApplyRecurring();
+      if(typeof autoMoveTomorrowPlans==="function")autoMoveTomorrowPlans();
+      if(typeof renderAll==="function")renderAll();
+    });
+}
 
 _auth.onAuthStateChanged(function(user){
   if(user){
@@ -37,24 +62,7 @@ _auth.onAuthStateChanged(function(user){
     document.getElementById("user-uid").textContent="UID: "+user.uid;
     var ptab=document.getElementById("tab-parent");
     if(ptab&&(user.uid===PARENT1_UID||user.uid===PARENT2_UID))ptab.style.display="inline-block";
-    if(_unsubscribe)_unsubscribe();
-    _unsubscribe=_db.collection("users").doc(user.uid).collection("app").doc("data")
-      .onSnapshot(function(snap){
-        if(snap.exists){
-          var s=snap.data();
-          if(s.logs)s.logs.forEach(function(l){if(!l.id)l.id=uid();});
-          if(s.tasks)s.tasks.forEach(function(t){if(!t.id)t.id=uid();});
-          if(s.tomorrowPlans)s.tomorrowPlans.forEach(function(t){if(!t.id)t.id=uid();});
-          data=Object.assign({},data,s);
-          if(!data.badges)data.badges=[];
-          if(!data.weeklyPointsHistory)data.weeklyPointsHistory=[];
-          if(!data.planEvents)data.planEvents=[];
-          if(!data.recurringTasks)data.recurringTasks=[];
-        }
-        if(typeof autoApplyRecurring==="function")autoApplyRecurring();
-        if(typeof autoMoveTomorrowPlans==="function")autoMoveTomorrowPlans();
-        if(typeof renderAll==="function")renderAll();
-      });
+    subscribeOwnData(user.uid);
     // Always land on Today tab after sign-in
     setTimeout(function(){if(typeof switchTab==="function")switchTab(0);},100);
     if(user.uid===PARENT1_UID||user.uid===PARENT2_UID){
@@ -62,6 +70,7 @@ _auth.onAuthStateChanged(function(user){
     }
   }else{
     _currentUser=null;
+    _viewingAsSon=false;_ownDataBackup=null;
     document.getElementById("auth-screen").style.display="flex";
     document.getElementById("main-app").style.display="none";
     if(_unsubscribe){_unsubscribe();_unsubscribe=null;}
@@ -91,6 +100,51 @@ function loadSonData(){
     .get().then(function(snap){
       if(typeof renderParentDashboard==="function")renderParentDashboard(snap.exists?snap.data():null);
     }).catch(function(e){console.error("Son data error:",e);});
+}
+
+// ─── View As Son (read-only preview of the son's own app view) ────
+function enterViewAsSon(){
+  if(!(_currentUser&&(_currentUser.uid===PARENT1_UID||_currentUser.uid===PARENT2_UID))){
+    alert("Only a parent account can use View As Son.");return;
+  }
+  _db.collection("users").doc(SON_UID).collection("app").doc("data").get().then(function(snap){
+    if(!snap.exists){alert("No data found yet for your son's account.");return;}
+    _ownDataBackup=data; // keep our own in-memory data safe; restored on exit
+    _viewingAsSon=true;
+    var s=snap.data();
+    data=Object.assign({logs:[],tasks:[],tomorrowPlans:[],futurePlans:[],goals:[],weekGoal:40,submissions:[],badges:[],weeklyPointsHistory:[],planEvents:[],recurringTasks:[]},s);
+    if(!data.badges)data.badges=[];
+    if(!data.weeklyPointsHistory)data.weeklyPointsHistory=[];
+    if(!data.planEvents)data.planEvents=[];
+    if(!data.recurringTasks)data.recurringTasks=[];
+    showViewAsBanner();
+    if(typeof switchTab==="function")switchTab(0);
+    if(typeof renderAll==="function")renderAll();
+  }).catch(function(e){console.error("View-as error:",e);alert("Couldn't load your son's data: "+e.message);});
+}
+function exitViewAsSon(){
+  if(!_viewingAsSon)return;
+  data=_ownDataBackup||data;
+  _ownDataBackup=null;
+  _viewingAsSon=false;
+  hideViewAsBanner();
+  if(typeof renderAll==="function")renderAll();
+}
+function showViewAsBanner(){
+  var b=document.getElementById('view-as-banner');
+  if(!b){
+    b=document.createElement('div');
+    b.id='view-as-banner';
+    b.style.cssText='position:sticky;top:0;z-index:600;background:#4c1d95;color:#fff;padding:10px 16px;display:flex;align-items:center;justify-content:center;gap:14px;font-size:.85rem;font-weight:600;flex-wrap:wrap;text-align:center';
+    b.innerHTML='<span><i class="fas fa-eye"></i> Viewing as your son — read-only, nothing you do here is saved.</span>'
+      +'<button onclick="exitViewAsSon()" style="background:#fff;color:#4c1d95;border:none;padding:6px 14px;border-radius:8px;font-weight:700;cursor:pointer;font-size:.8rem">Return to My View</button>';
+    document.body.insertBefore(b,document.body.firstChild);
+  }
+  b.style.display='flex';
+}
+function hideViewAsBanner(){
+  var b=document.getElementById('view-as-banner');
+  if(b)b.style.display='none';
 }
 </script>
 <title>LynxTrack v7</title>
@@ -941,9 +995,14 @@ function loadSonData(){
           </h2>
           <p style="color:#71717a;font-size:.85rem;margin-top:4px">Read-only — click Refresh to update</p>
         </div>
-        <button onclick="loadSonData()" style="background:#27272a;border:none;color:#d4d4d8;padding:8px 16px;border-radius:12px;cursor:pointer;font-size:.85rem;display:flex;align-items:center;gap:6px">
-          <i class="fas fa-sync"></i> Refresh
-        </button>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button onclick="enterViewAsSon()" style="background:#4c1d95;border:none;color:#e9d5ff;padding:8px 16px;border-radius:12px;cursor:pointer;font-size:.85rem;display:flex;align-items:center;gap:6px;font-weight:600">
+            <i class="fas fa-eye"></i> View As Son
+          </button>
+          <button onclick="loadSonData()" style="background:#27272a;border:none;color:#d4d4d8;padding:8px 16px;border-radius:12px;cursor:pointer;font-size:.85rem;display:flex;align-items:center;gap:6px">
+            <i class="fas fa-sync"></i> Refresh
+          </button>
+        </div>
       </div>
       <div id="parent-dashboard-content">
         <p style="color:#52525b;text-align:center;padding:48px 0">Click Refresh to load your son's activity.</p>
@@ -1044,6 +1103,11 @@ function loadData(){
   renderAll();
 }
 function saveData(){
+  if(_viewingAsSon){
+    showToast('👀 Read-only preview — nothing is saved here.');
+    renderAll();
+    return;
+  }
   if(typeof _saveToFirestore==="function"&&_currentUser){
     _saveToFirestore(data);
   } else {
@@ -2586,6 +2650,7 @@ function renderFuturePlansTab() {
 
 // ─── Reset ────────────────────────────────────────────────────
 function resetAllData(){
+  if(_viewingAsSon){alert('You are previewing your son\'s data (read-only). Click "Return to My View" before clearing any data.');return;}
   if(!confirm('Clear ALL data permanently? Cannot be undone.'))return;
   localStorage.removeItem('lynx_v5');localStorage.removeItem('lynx_v4');localStorage.removeItem('lynx_v6');
   data={logs:[],tasks:[],tomorrowPlans:[],futurePlans:[],goals:[...DEFAULT_GOALS],weekGoal:40,submissions:[],badges:[],weeklyPointsHistory:[],planEvents:[],recurringTasks:[]};
