@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- LynxTrack v8 -->
+<!-- LynxTrack v8 (built on live v7 w/ Export + View As Son) -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -26,6 +26,31 @@ const PARENT1_UID="VK7a9Fx1TjcwHRSEe26nkHu1nHp1";
 const PARENT2_UID="6SfDo657ShMfRmDV9Iont5LBRtA2";
 const SON_UID="4u6vqWeiu1Uu6qXcuCT35MFQHSs2";
 var _currentUser=null,_unsubscribe=null;
+var _viewingAsSon=false,_ownDataBackup=null;
+
+// Pulled out of onAuthStateChanged so "Return to My View" can re-establish
+// the parent's own live listener after a "View As Son" preview.
+function subscribeOwnData(theUid){
+  if(_unsubscribe)_unsubscribe();
+  _unsubscribe=_db.collection("users").doc(theUid).collection("app").doc("data")
+    .onSnapshot(function(snap){
+      if(_viewingAsSon)return; // don't let our own updates clobber the son-preview
+      if(snap.exists){
+        var s=snap.data();
+        if(s.logs)s.logs.forEach(function(l){if(!l.id)l.id=uid();});
+        if(s.tasks)s.tasks.forEach(function(t){if(!t.id)t.id=uid();});
+        if(s.tomorrowPlans)s.tomorrowPlans.forEach(function(t){if(!t.id)t.id=uid();});
+        data=Object.assign({},data,s);
+        if(!data.badges)data.badges=[];
+        if(!data.weeklyPointsHistory)data.weeklyPointsHistory=[];
+        if(!data.planEvents)data.planEvents=[];
+        if(!data.recurringTasks)data.recurringTasks=[];
+      }
+      if(typeof autoApplyRecurring==="function")autoApplyRecurring();
+      if(typeof autoMoveTomorrowPlans==="function")autoMoveTomorrowPlans();
+      if(typeof renderAll==="function")renderAll();
+    });
+}
 
 _auth.onAuthStateChanged(function(user){
   if(user){
@@ -37,24 +62,7 @@ _auth.onAuthStateChanged(function(user){
     document.getElementById("user-uid").textContent="UID: "+user.uid;
     var ptab=document.getElementById("tab-parent");
     if(ptab&&(user.uid===PARENT1_UID||user.uid===PARENT2_UID))ptab.style.display="inline-block";
-    if(_unsubscribe)_unsubscribe();
-    _unsubscribe=_db.collection("users").doc(user.uid).collection("app").doc("data")
-      .onSnapshot(function(snap){
-        if(snap.exists){
-          var s=snap.data();
-          if(s.logs)s.logs.forEach(function(l){if(!l.id)l.id=uid();});
-          if(s.tasks)s.tasks.forEach(function(t){if(!t.id)t.id=uid();});
-          if(s.tomorrowPlans)s.tomorrowPlans.forEach(function(t){if(!t.id)t.id=uid();});
-          data=Object.assign({},data,s);
-          if(!data.badges)data.badges=[];
-          if(!data.weeklyPointsHistory)data.weeklyPointsHistory=[];
-          if(!data.planEvents)data.planEvents=[];
-          if(!data.recurringTasks)data.recurringTasks=[];
-        }
-        if(typeof autoApplyRecurring==="function")autoApplyRecurring();
-        if(typeof autoMoveTomorrowPlans==="function")autoMoveTomorrowPlans();
-        if(typeof renderAll==="function")renderAll();
-      });
+    subscribeOwnData(user.uid);
     // Always land on Today tab after sign-in
     setTimeout(function(){if(typeof switchTab==="function")switchTab(0);},100);
     if(user.uid===PARENT1_UID||user.uid===PARENT2_UID){
@@ -62,6 +70,7 @@ _auth.onAuthStateChanged(function(user){
     }
   }else{
     _currentUser=null;
+    _viewingAsSon=false;_ownDataBackup=null;
     document.getElementById("auth-screen").style.display="flex";
     document.getElementById("main-app").style.display="none";
     if(_unsubscribe){_unsubscribe();_unsubscribe=null;}
@@ -91,6 +100,51 @@ function loadSonData(){
     .get().then(function(snap){
       if(typeof renderParentDashboard==="function")renderParentDashboard(snap.exists?snap.data():null);
     }).catch(function(e){console.error("Son data error:",e);});
+}
+
+// ─── View As Son (read-only preview of the son's own app view) ────
+function enterViewAsSon(){
+  if(!(_currentUser&&(_currentUser.uid===PARENT1_UID||_currentUser.uid===PARENT2_UID))){
+    alert("Only a parent account can use View As Son.");return;
+  }
+  _db.collection("users").doc(SON_UID).collection("app").doc("data").get().then(function(snap){
+    if(!snap.exists){alert("No data found yet for your son's account.");return;}
+    _ownDataBackup=data; // keep our own in-memory data safe; restored on exit
+    _viewingAsSon=true;
+    var s=snap.data();
+    data=Object.assign({logs:[],tasks:[],tomorrowPlans:[],futurePlans:[],goals:[],weekGoal:40,submissions:[],badges:[],weeklyPointsHistory:[],planEvents:[],recurringTasks:[]},s);
+    if(!data.badges)data.badges=[];
+    if(!data.weeklyPointsHistory)data.weeklyPointsHistory=[];
+    if(!data.planEvents)data.planEvents=[];
+    if(!data.recurringTasks)data.recurringTasks=[];
+    showViewAsBanner();
+    if(typeof switchTab==="function")switchTab(0);
+    if(typeof renderAll==="function")renderAll();
+  }).catch(function(e){console.error("View-as error:",e);alert("Couldn't load your son's data: "+e.message);});
+}
+function exitViewAsSon(){
+  if(!_viewingAsSon)return;
+  data=_ownDataBackup||data;
+  _ownDataBackup=null;
+  _viewingAsSon=false;
+  hideViewAsBanner();
+  if(typeof renderAll==="function")renderAll();
+}
+function showViewAsBanner(){
+  var b=document.getElementById('view-as-banner');
+  if(!b){
+    b=document.createElement('div');
+    b.id='view-as-banner';
+    b.style.cssText='position:sticky;top:0;z-index:600;background:#4c1d95;color:#fff;padding:10px 16px;display:flex;align-items:center;justify-content:center;gap:14px;font-size:.85rem;font-weight:600;flex-wrap:wrap;text-align:center';
+    b.innerHTML='<span><i class="fas fa-eye"></i> Viewing as your son — read-only, nothing you do here is saved.</span>'
+      +'<button onclick="exitViewAsSon()" style="background:#fff;color:#4c1d95;border:none;padding:6px 14px;border-radius:8px;font-weight:700;cursor:pointer;font-size:.8rem">Return to My View</button>';
+    document.body.insertBefore(b,document.body.firstChild);
+  }
+  b.style.display='flex';
+}
+function hideViewAsBanner(){
+  var b=document.getElementById('view-as-banner');
+  if(b)b.style.display='none';
 }
 </script>
 <title>LynxTrack v8</title>
@@ -364,6 +418,9 @@ function loadSonData(){
     <div id="current-date" style="font-size:.75rem;color:#71717a;padding:0 4px"></div>
     <button id="submit-btn" onclick="openSubmitModal()" class="px-3 py-1.5 text-xs bg-emerald-900 hover:bg-emerald-800 text-emerald-400 rounded-xl flex items-center gap-1.5">
       <i class="fas fa-paper-plane" style="font-size:.75rem"></i> <span id="submit-btn-label">Submit Log</span>
+    </button>
+    <button onclick="exportData()" class="px-3 py-1.5 text-xs bg-sky-950 hover:bg-sky-900 text-sky-400 rounded-xl flex items-center gap-1.5">
+      <i class="fas fa-download" style="font-size:.75rem"></i> Export Data
     </button>
     <button onclick="resetAllData()" class="px-3 py-1.5 text-xs bg-zinc-900 hover:bg-red-950 text-red-400 rounded-xl flex items-center gap-1.5">
       <i class="fas fa-trash" style="font-size:.75rem"></i> Clear All
@@ -947,9 +1004,14 @@ function loadSonData(){
           </h2>
           <p style="color:#71717a;font-size:.85rem;margin-top:4px">Read-only — click Refresh to update</p>
         </div>
-        <button onclick="loadSonData()" style="background:#27272a;border:none;color:#d4d4d8;padding:8px 16px;border-radius:12px;cursor:pointer;font-size:.85rem;display:flex;align-items:center;gap:6px">
-          <i class="fas fa-sync"></i> Refresh
-        </button>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button onclick="enterViewAsSon()" style="background:#4c1d95;border:none;color:#e9d5ff;padding:8px 16px;border-radius:12px;cursor:pointer;font-size:.85rem;display:flex;align-items:center;gap:6px;font-weight:600">
+            <i class="fas fa-eye"></i> View As Son
+          </button>
+          <button onclick="loadSonData()" style="background:#27272a;border:none;color:#d4d4d8;padding:8px 16px;border-radius:12px;cursor:pointer;font-size:.85rem;display:flex;align-items:center;gap:6px">
+            <i class="fas fa-sync"></i> Refresh
+          </button>
+        </div>
       </div>
       <div id="parent-dashboard-content">
         <p style="color:#52525b;text-align:center;padding:48px 0">Click Refresh to load your son's activity.</p>
@@ -1050,6 +1112,11 @@ function loadData(){
   renderAll();
 }
 function saveData(){
+  if(_viewingAsSon){
+    showToast('👀 Read-only preview — nothing is saved here.');
+    renderAll();
+    return;
+  }
   if(typeof _saveToFirestore==="function"&&_currentUser){
     _saveToFirestore(data);
   } else {
@@ -1948,21 +2015,23 @@ function openFuturePlanForDate(dateStr) {
 }
 
 // ─── Submit Log ───────────────────────────────────────────────
-function getWeekKey(){
-  const d=new Date(),jan4=new Date(d.getFullYear(),0,4),s1=new Date(jan4);
+// weekKeyForDate: ISO-style Mon–Sun week number. IMPORTANT: `d` must be
+// normalized to midnight first — if it carries a time-of-day component
+// (e.g. "right now", or a noon-anchored log date), the old Math.ceil-based
+// formula rounds the LAST day of the week (Sunday) into the NEXT week,
+// a full day early. Stripping to midnight + Math.floor fixes that.
+function weekKeyForDate(dIn){
+  const d=new Date(dIn.getFullYear(),dIn.getMonth(),dIn.getDate()); // strip time-of-day
+  const jan4=new Date(d.getFullYear(),0,4),s1=new Date(jan4);
   s1.setDate(jan4.getDate()-((jan4.getDay()+6)%7));
-  const wn=Math.ceil(((d-s1)/86400000+1)/7);
+  const wn=Math.floor((d-s1)/86400000/7)+1;
   return d.getFullYear()+'-W'+String(wn).padStart(2,'0');
 }
+function getWeekKey(){ return weekKeyForDate(new Date()); }
 function daysUntilSunday(){ const day=new Date().getDay();return day===0?0:7-day; }
 function isWeekSubmitted(wk){ return (data.submissions||[]).some(s=>s.weekKey===wk); }
 function getWeekLogsForKey(wk){
-  return data.logs.filter(l=>{
-    const d=new Date(l.date+'T12:00:00'),jan4=new Date(d.getFullYear(),0,4),s1=new Date(jan4);
-    s1.setDate(jan4.getDate()-((jan4.getDay()+6)%7));
-    const wn=Math.ceil(((d-s1)/86400000+1)/7);
-    return d.getFullYear()+'-W'+String(wn).padStart(2,'0')===wk;
-  });
+  return data.logs.filter(l=>weekKeyForDate(new Date(l.date+'T12:00:00'))===wk);
 }
 function renderSubmitBanner(){
   const banner=document.getElementById('submit-banner'),btn=document.getElementById('submit-btn'),lbl=document.getElementById('submit-btn-label');
@@ -2590,11 +2659,42 @@ function renderFuturePlansTab() {
 
 // ─── Reset ────────────────────────────────────────────────────
 function resetAllData(){
+  if(_viewingAsSon){alert('You are previewing your son\'s data (read-only). Click "Return to My View" before clearing any data.');return;}
   if(!confirm('Clear ALL data permanently? Cannot be undone.'))return;
   localStorage.removeItem('lynx_v5');localStorage.removeItem('lynx_v4');localStorage.removeItem('lynx_v6');
   data={logs:[],tasks:[],tomorrowPlans:[],futurePlans:[],goals:[...DEFAULT_GOALS],weekGoal:40,submissions:[],badges:[],weeklyPointsHistory:[],planEvents:[],recurringTasks:[]};
   document.getElementById('week-goal-input').value=40;
   showToast('🗑️ All data cleared.');renderAll();
+}
+
+// ─── Export Data (full backup / audit snapshot as JSON) ────────
+function exportData(){
+  const exportObj={
+    exportedAt:new Date().toISOString(),
+    exportedForUid:_currentUser?_currentUser.uid:null,
+    exportedForUser:_currentUser?(_currentUser.displayName||_currentUser.email):null,
+    weekGoal:data.weekGoal,
+    logs:data.logs||[],
+    tasks:data.tasks||[],
+    tomorrowPlans:data.tomorrowPlans||[],
+    futurePlans:data.futurePlans||[],
+    goals:data.goals||[],
+    submissions:data.submissions||[],
+    badges:data.badges||[],
+    weeklyPointsHistory:data.weeklyPointsHistory||[],
+    planEvents:data.planEvents||[],
+    recurringTasks:data.recurringTasks||[]
+  };
+  const blob=new Blob([JSON.stringify(exportObj,null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;
+  a.download='lynxtrack-export-'+localDateStr()+'.json';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+  showToast('📦 Data exported — check your downloads.');
 }
 
 // ─── Live Points Widget ───────────────────────────────────────
@@ -3704,6 +3804,29 @@ function v8InitForm(){
 
 document.addEventListener('DOMContentLoaded',v8InitForm);
 if(document.readyState!=='loading') v8InitForm();
+
+// ── Live-build compatibility: week key + export include job search ──
+if(typeof weekKeyForDate==='function'){ weekKeyForDate=function(d){ return weekKeyOf(v8DateStr(d)); }; }
+if(typeof exportData==='function'){
+  exportData=function(){
+    var exportObj={
+      exportedAt:new Date().toISOString(),
+      exportedForUid:_currentUser?_currentUser.uid:null,
+      exportedForUser:_currentUser?(_currentUser.displayName||_currentUser.email):null,
+      viewingAsSon:(typeof _viewingAsSon!=='undefined')&&!!_viewingAsSon,
+      weekGoal:data.weekGoal, logs:data.logs||[], tasks:data.tasks||[], tomorrowPlans:data.tomorrowPlans||[],
+      futurePlans:data.futurePlans||[], goals:data.goals||[], submissions:data.submissions||[], badges:data.badges||[],
+      weeklyPointsHistory:data.weeklyPointsHistory||[], planEvents:data.planEvents||[], recurringTasks:data.recurringTasks||[],
+      applications:data.applications||[], milestones:data.milestones||{}
+    };
+    var blob=new Blob([JSON.stringify(exportObj,null,2)],{type:'application/json'});
+    var url=URL.createObjectURL(blob), a=document.createElement('a');
+    a.href=url; a.download='lynxtrack-export-'+localDateStr()+'.json';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(function(){URL.revokeObjectURL(url);},1000);
+    showToast('📦 Data exported — check your downloads.');
+  };
+}
 
 </script>
 </body>
