@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- LynxTrack v7 build cebad9ff -->
+<!-- LynxTrack v8 -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -26,31 +26,6 @@ const PARENT1_UID="VK7a9Fx1TjcwHRSEe26nkHu1nHp1";
 const PARENT2_UID="6SfDo657ShMfRmDV9Iont5LBRtA2";
 const SON_UID="4u6vqWeiu1Uu6qXcuCT35MFQHSs2";
 var _currentUser=null,_unsubscribe=null;
-var _viewingAsSon=false,_ownDataBackup=null;
-
-// Pulled out of onAuthStateChanged so "Return to My View" can re-establish
-// the parent's own live listener after a "View As Son" preview.
-function subscribeOwnData(theUid){
-  if(_unsubscribe)_unsubscribe();
-  _unsubscribe=_db.collection("users").doc(theUid).collection("app").doc("data")
-    .onSnapshot(function(snap){
-      if(_viewingAsSon)return; // don't let our own updates clobber the son-preview
-      if(snap.exists){
-        var s=snap.data();
-        if(s.logs)s.logs.forEach(function(l){if(!l.id)l.id=uid();});
-        if(s.tasks)s.tasks.forEach(function(t){if(!t.id)t.id=uid();});
-        if(s.tomorrowPlans)s.tomorrowPlans.forEach(function(t){if(!t.id)t.id=uid();});
-        data=Object.assign({},data,s);
-        if(!data.badges)data.badges=[];
-        if(!data.weeklyPointsHistory)data.weeklyPointsHistory=[];
-        if(!data.planEvents)data.planEvents=[];
-        if(!data.recurringTasks)data.recurringTasks=[];
-      }
-      if(typeof autoApplyRecurring==="function")autoApplyRecurring();
-      if(typeof autoMoveTomorrowPlans==="function")autoMoveTomorrowPlans();
-      if(typeof renderAll==="function")renderAll();
-    });
-}
 
 _auth.onAuthStateChanged(function(user){
   if(user){
@@ -62,7 +37,24 @@ _auth.onAuthStateChanged(function(user){
     document.getElementById("user-uid").textContent="UID: "+user.uid;
     var ptab=document.getElementById("tab-parent");
     if(ptab&&(user.uid===PARENT1_UID||user.uid===PARENT2_UID))ptab.style.display="inline-block";
-    subscribeOwnData(user.uid);
+    if(_unsubscribe)_unsubscribe();
+    _unsubscribe=_db.collection("users").doc(user.uid).collection("app").doc("data")
+      .onSnapshot(function(snap){
+        if(snap.exists){
+          var s=snap.data();
+          if(s.logs)s.logs.forEach(function(l){if(!l.id)l.id=uid();});
+          if(s.tasks)s.tasks.forEach(function(t){if(!t.id)t.id=uid();});
+          if(s.tomorrowPlans)s.tomorrowPlans.forEach(function(t){if(!t.id)t.id=uid();});
+          data=Object.assign({},data,s);
+          if(!data.badges)data.badges=[];
+          if(!data.weeklyPointsHistory)data.weeklyPointsHistory=[];
+          if(!data.planEvents)data.planEvents=[];
+          if(!data.recurringTasks)data.recurringTasks=[];
+        }
+        if(typeof autoApplyRecurring==="function")autoApplyRecurring();
+        if(typeof autoMoveTomorrowPlans==="function")autoMoveTomorrowPlans();
+        if(typeof renderAll==="function")renderAll();
+      });
     // Always land on Today tab after sign-in
     setTimeout(function(){if(typeof switchTab==="function")switchTab(0);},100);
     if(user.uid===PARENT1_UID||user.uid===PARENT2_UID){
@@ -70,7 +62,6 @@ _auth.onAuthStateChanged(function(user){
     }
   }else{
     _currentUser=null;
-    _viewingAsSon=false;_ownDataBackup=null;
     document.getElementById("auth-screen").style.display="flex";
     document.getElementById("main-app").style.display="none";
     if(_unsubscribe){_unsubscribe();_unsubscribe=null;}
@@ -101,53 +92,8 @@ function loadSonData(){
       if(typeof renderParentDashboard==="function")renderParentDashboard(snap.exists?snap.data():null);
     }).catch(function(e){console.error("Son data error:",e);});
 }
-
-// ─── View As Son (read-only preview of the son's own app view) ────
-function enterViewAsSon(){
-  if(!(_currentUser&&(_currentUser.uid===PARENT1_UID||_currentUser.uid===PARENT2_UID))){
-    alert("Only a parent account can use View As Son.");return;
-  }
-  _db.collection("users").doc(SON_UID).collection("app").doc("data").get().then(function(snap){
-    if(!snap.exists){alert("No data found yet for your son's account.");return;}
-    _ownDataBackup=data; // keep our own in-memory data safe; restored on exit
-    _viewingAsSon=true;
-    var s=snap.data();
-    data=Object.assign({logs:[],tasks:[],tomorrowPlans:[],futurePlans:[],goals:[],weekGoal:40,submissions:[],badges:[],weeklyPointsHistory:[],planEvents:[],recurringTasks:[]},s);
-    if(!data.badges)data.badges=[];
-    if(!data.weeklyPointsHistory)data.weeklyPointsHistory=[];
-    if(!data.planEvents)data.planEvents=[];
-    if(!data.recurringTasks)data.recurringTasks=[];
-    showViewAsBanner();
-    if(typeof switchTab==="function")switchTab(0);
-    if(typeof renderAll==="function")renderAll();
-  }).catch(function(e){console.error("View-as error:",e);alert("Couldn't load your son's data: "+e.message);});
-}
-function exitViewAsSon(){
-  if(!_viewingAsSon)return;
-  data=_ownDataBackup||data;
-  _ownDataBackup=null;
-  _viewingAsSon=false;
-  hideViewAsBanner();
-  if(typeof renderAll==="function")renderAll();
-}
-function showViewAsBanner(){
-  var b=document.getElementById('view-as-banner');
-  if(!b){
-    b=document.createElement('div');
-    b.id='view-as-banner';
-    b.style.cssText='position:sticky;top:0;z-index:600;background:#4c1d95;color:#fff;padding:10px 16px;display:flex;align-items:center;justify-content:center;gap:14px;font-size:.85rem;font-weight:600;flex-wrap:wrap;text-align:center';
-    b.innerHTML='<span><i class="fas fa-eye"></i> Viewing as your son — read-only, nothing you do here is saved.</span>'
-      +'<button onclick="exitViewAsSon()" style="background:#fff;color:#4c1d95;border:none;padding:6px 14px;border-radius:8px;font-weight:700;cursor:pointer;font-size:.8rem">Return to My View</button>';
-    document.body.insertBefore(b,document.body.firstChild);
-  }
-  b.style.display='flex';
-}
-function hideViewAsBanner(){
-  var b=document.getElementById('view-as-banner');
-  if(b)b.style.display='none';
-}
 </script>
-<title>LynxTrack v7</title>
+<title>LynxTrack v8</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.tailwindcss.com"></script>
@@ -200,6 +146,8 @@ function hideViewAsBanner(){
   .cat-sort-btn { transition: all .15s; cursor:pointer; }
   .rec-day-btn.active-day { border-color: #16a34a!important; background:#052e16!important; color:#4ade80!important; }
   .active-sort { border-color:rgb(109 40 217)!important; background:rgb(76 29 149)!important; color:rgb(196 181 253)!important; }
+  /* v8: Ask Claude buttons removed (no API key in a browser app) */
+  #claude-btn-today,#claude-btn-plan{display:none!important;}
 </style>
 </head>
 <body class="bg-zinc-950 text-zinc-100 min-h-screen">
@@ -406,7 +354,7 @@ function hideViewAsBanner(){
 <div class="app-header">
   <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
     <div style="width:32px;height:32px;background:#6d28d9;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:16px">🐾</div>
-    <div style="font-size:1rem;font-weight:700">LynxTrack <span style="color:#a78bfa">v7</span></div>
+    <div style="font-size:1rem;font-weight:700">LynxTrack <span style="color:#a78bfa">v8</span></div>
   </div>
   <div class="app-header-right">
     <div id="streak-display" style="display:flex;align-items:center;gap:6px;background:#18181b;padding:5px 10px;border-radius:20px;cursor:pointer">
@@ -416,9 +364,6 @@ function hideViewAsBanner(){
     <div id="current-date" style="font-size:.75rem;color:#71717a;padding:0 4px"></div>
     <button id="submit-btn" onclick="openSubmitModal()" class="px-3 py-1.5 text-xs bg-emerald-900 hover:bg-emerald-800 text-emerald-400 rounded-xl flex items-center gap-1.5">
       <i class="fas fa-paper-plane" style="font-size:.75rem"></i> <span id="submit-btn-label">Submit Log</span>
-    </button>
-    <button onclick="exportData()" class="px-3 py-1.5 text-xs bg-sky-950 hover:bg-sky-900 text-sky-400 rounded-xl flex items-center gap-1.5">
-      <i class="fas fa-download" style="font-size:.75rem"></i> Export Data
     </button>
     <button onclick="resetAllData()" class="px-3 py-1.5 text-xs bg-zinc-900 hover:bg-red-950 text-red-400 rounded-xl flex items-center gap-1.5">
       <i class="fas fa-trash" style="font-size:.75rem"></i> Clear All
@@ -431,6 +376,7 @@ function hideViewAsBanner(){
   <!-- Tabs -->
   <div class="tabs-bar-wrapper"><div class="tabs-bar">
     <button onclick="switchTab(0)" id="tab-0" class="tab-active px-6 py-4 font-medium flex-1 md:flex-none">Today</button>
+    <button onclick="switchTab(9)" id="tab-9" class="px-6 py-4 font-medium flex-1 md:flex-none text-zinc-400 hover:text-zinc-200">💼 Job Search</button>
     <button onclick="switchTab(1)" id="tab-1" class="px-6 py-4 font-medium flex-1 md:flex-none text-zinc-400 hover:text-zinc-200">Tomorrow</button>
     <button onclick="switchTab(2)" id="tab-2" class="px-6 py-4 font-medium flex-1 md:flex-none text-zinc-400 hover:text-zinc-200">Analytics</button>
     <button onclick="switchTab(3)" id="tab-3" class="px-6 py-4 font-medium flex-1 md:flex-none text-zinc-400 hover:text-zinc-200">History</button>
@@ -556,6 +502,9 @@ function hideViewAsBanner(){
 
       <!-- Right column -->
       <div class="lg:col-span-5 space-y-6">
+
+        <!-- Job Search quick card (v8) -->
+        <div class="card bg-zinc-900 rounded-3xl p-6 border border-violet-900" id="v8-today-card"></div>
 
         <!-- This Week -->
         <div class="card bg-zinc-900 rounded-3xl p-6">
@@ -985,6 +934,9 @@ function hideViewAsBanner(){
     </div>
   </div>
 
+  <!-- ════════════════ JOB SEARCH TAB (v8) ════════════════ -->
+  <div id="tab-content-9" class="tab-content hidden"><div id="v8-jobsearch"></div></div>
+
   <!-- Dashboard Tab -->
   <div id="tab-content-8" class="tab-content" style="min-height:400px">
     <div style="max-width:900px;margin:0 auto;padding:16px">
@@ -995,14 +947,9 @@ function hideViewAsBanner(){
           </h2>
           <p style="color:#71717a;font-size:.85rem;margin-top:4px">Read-only — click Refresh to update</p>
         </div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <button onclick="enterViewAsSon()" style="background:#4c1d95;border:none;color:#e9d5ff;padding:8px 16px;border-radius:12px;cursor:pointer;font-size:.85rem;display:flex;align-items:center;gap:6px;font-weight:600">
-            <i class="fas fa-eye"></i> View As Son
-          </button>
-          <button onclick="loadSonData()" style="background:#27272a;border:none;color:#d4d4d8;padding:8px 16px;border-radius:12px;cursor:pointer;font-size:.85rem;display:flex;align-items:center;gap:6px">
-            <i class="fas fa-sync"></i> Refresh
-          </button>
-        </div>
+        <button onclick="loadSonData()" style="background:#27272a;border:none;color:#d4d4d8;padding:8px 16px;border-radius:12px;cursor:pointer;font-size:.85rem;display:flex;align-items:center;gap:6px">
+          <i class="fas fa-sync"></i> Refresh
+        </button>
       </div>
       <div id="parent-dashboard-content">
         <p style="color:#52525b;text-align:center;padding:48px 0">Click Refresh to load your son's activity.</p>
@@ -1103,11 +1050,6 @@ function loadData(){
   renderAll();
 }
 function saveData(){
-  if(_viewingAsSon){
-    showToast('👀 Read-only preview — nothing is saved here.');
-    renderAll();
-    return;
-  }
   if(typeof _saveToFirestore==="function"&&_currentUser){
     _saveToFirestore(data);
   } else {
@@ -2006,23 +1948,21 @@ function openFuturePlanForDate(dateStr) {
 }
 
 // ─── Submit Log ───────────────────────────────────────────────
-// weekKeyForDate: ISO-style Mon–Sun week number. IMPORTANT: `d` must be
-// normalized to midnight first — if it carries a time-of-day component
-// (e.g. "right now", or a noon-anchored log date), the old Math.ceil-based
-// formula rounds the LAST day of the week (Sunday) into the NEXT week,
-// a full day early. Stripping to midnight + Math.floor fixes that.
-function weekKeyForDate(dIn){
-  const d=new Date(dIn.getFullYear(),dIn.getMonth(),dIn.getDate()); // strip time-of-day
-  const jan4=new Date(d.getFullYear(),0,4),s1=new Date(jan4);
+function getWeekKey(){
+  const d=new Date(),jan4=new Date(d.getFullYear(),0,4),s1=new Date(jan4);
   s1.setDate(jan4.getDate()-((jan4.getDay()+6)%7));
-  const wn=Math.floor((d-s1)/86400000/7)+1;
+  const wn=Math.ceil(((d-s1)/86400000+1)/7);
   return d.getFullYear()+'-W'+String(wn).padStart(2,'0');
 }
-function getWeekKey(){ return weekKeyForDate(new Date()); }
 function daysUntilSunday(){ const day=new Date().getDay();return day===0?0:7-day; }
 function isWeekSubmitted(wk){ return (data.submissions||[]).some(s=>s.weekKey===wk); }
 function getWeekLogsForKey(wk){
-  return data.logs.filter(l=>weekKeyForDate(new Date(l.date+'T12:00:00'))===wk);
+  return data.logs.filter(l=>{
+    const d=new Date(l.date+'T12:00:00'),jan4=new Date(d.getFullYear(),0,4),s1=new Date(jan4);
+    s1.setDate(jan4.getDate()-((jan4.getDay()+6)%7));
+    const wn=Math.ceil(((d-s1)/86400000+1)/7);
+    return d.getFullYear()+'-W'+String(wn).padStart(2,'0')===wk;
+  });
 }
 function renderSubmitBanner(){
   const banner=document.getElementById('submit-banner'),btn=document.getElementById('submit-btn'),lbl=document.getElementById('submit-btn-label');
@@ -2650,42 +2590,11 @@ function renderFuturePlansTab() {
 
 // ─── Reset ────────────────────────────────────────────────────
 function resetAllData(){
-  if(_viewingAsSon){alert('You are previewing your son\'s data (read-only). Click "Return to My View" before clearing any data.');return;}
   if(!confirm('Clear ALL data permanently? Cannot be undone.'))return;
   localStorage.removeItem('lynx_v5');localStorage.removeItem('lynx_v4');localStorage.removeItem('lynx_v6');
   data={logs:[],tasks:[],tomorrowPlans:[],futurePlans:[],goals:[...DEFAULT_GOALS],weekGoal:40,submissions:[],badges:[],weeklyPointsHistory:[],planEvents:[],recurringTasks:[]};
   document.getElementById('week-goal-input').value=40;
   showToast('🗑️ All data cleared.');renderAll();
-}
-
-// ─── Export Data (full backup / audit snapshot as JSON) ────────
-function exportData(){
-  const exportObj={
-    exportedAt:new Date().toISOString(),
-    exportedForUid:_currentUser?_currentUser.uid:null,
-    exportedForUser:_currentUser?(_currentUser.displayName||_currentUser.email):null,
-    weekGoal:data.weekGoal,
-    logs:data.logs||[],
-    tasks:data.tasks||[],
-    tomorrowPlans:data.tomorrowPlans||[],
-    futurePlans:data.futurePlans||[],
-    goals:data.goals||[],
-    submissions:data.submissions||[],
-    badges:data.badges||[],
-    weeklyPointsHistory:data.weeklyPointsHistory||[],
-    planEvents:data.planEvents||[],
-    recurringTasks:data.recurringTasks||[]
-  };
-  const blob=new Blob([JSON.stringify(exportObj,null,2)],{type:'application/json'});
-  const url=URL.createObjectURL(blob);
-  const a=document.createElement('a');
-  a.href=url;
-  a.download='lynxtrack-export-'+localDateStr()+'.json';
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  setTimeout(()=>URL.revokeObjectURL(url),1000);
-  showToast('📦 Data exported — check your downloads.');
 }
 
 // ─── Live Points Widget ───────────────────────────────────────
@@ -3278,5 +3187,524 @@ function restoreLynxBackup(){
 </div><!-- /main-app -->
 
 
+<script>
+// ════════════════════════════════════════════════════════════════
+// LynxTrack v8 engine
+// One points table, job-search tracking, weekly application streak,
+// milestones, and fixes to early-bird / streak / week-key logic.
+// Loaded after the v7 script; functions here replace the v7 versions.
+// ════════════════════════════════════════════════════════════════
+
+// ─── Settings Dad can change ─────────────────────────────────────
+var V8 = {
+  APP_WEEKLY_GOAL: 5,          // applications per week to keep the streak
+  PTS_APPLICATION: 25,         // each application logged
+  PTS_INTERVIEW: 75,           // each application that reaches interview
+  PTS_OFFER: 150,              // each offer
+  PTS_MILESTONE: 50,           // one-time, the week a milestone is hit
+  LOG_BONUS: 5,                // per logged entry...
+  LOG_BONUS_MAX_PER_DAY: 3,    // ...capped at this many entries per day
+  STREAK_FREEZES_PER_MONTH: 1, // missed weeks forgiven per month
+  // Weekly streak bonus by streak length (week 1, 2, 3, 4+)
+  STREAK_BONUS: [50, 75, 100, 125]
+};
+
+// One-time milestones. Edit the reward text with Ben before deploying.
+var V8_MILESTONES = [
+  { id:'first_app',       emoji:'📨', name:'First application sent',            auto:true,  reward:'Reward: pick with Dad' },
+  { id:'rvcc_appt',       emoji:'🎓', name:'RVCC Career Services appointment booked', auto:false, reward:'Reward: pick with Dad' },
+  { id:'dvrs_filed',      emoji:'📝', name:'DVRS application filed',            auto:false, reward:'Reward: pick with Dad' },
+  { id:'first_full_week', emoji:'✅', name:'First 5-application week',          auto:true,  reward:'Reward: pick with Dad' },
+  { id:'streak_3',        emoji:'🔥', name:'3-week application streak',         auto:true,  reward:'Reward: pick with Dad' },
+  { id:'first_interview', emoji:'🤝', name:'First interview',                   auto:true,  reward:'Reward: pick with Dad' },
+  { id:'school_app',      emoji:'🏫', name:'School application submitted',      auto:false, reward:'Reward: pick with Dad' },
+  { id:'first_offer',     emoji:'🏆', name:'First job offer',                   auto:true,  reward:'Reward: pick with Dad' }
+];
+
+var V8_STATUSES = ['Applied','Interview','Offer','Rejected','No response'];
+
+// ─── Date / week helpers (Mon–Sun weeks, ISO numbering) ─────────
+function v8ParseDate(s){ var p=s.split('-'); return new Date(+p[0],+p[1]-1,+p[2],12,0,0); }
+function v8DateStr(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function v8AddDays(s,n){ var d=v8ParseDate(s); d.setDate(d.getDate()+n); return v8DateStr(d); }
+function v8MondayOf(s){ var d=v8ParseDate(s); d.setDate(d.getDate()-((d.getDay()+6)%7)); return v8DateStr(d); }
+function weekKeyOf(s){
+  var d=v8ParseDate(s);
+  var th=new Date(d); th.setDate(d.getDate()+3-((d.getDay()+6)%7)); // Thursday of this week
+  var y=th.getFullYear(), j4=new Date(y,0,4,12);
+  var wk1Mon=new Date(j4); wk1Mon.setDate(j4.getDate()-((j4.getDay()+6)%7));
+  var wn=1+Math.floor(Math.round((th-wk1Mon)/86400000)/7);
+  return y+'-W'+String(wn).padStart(2,'0');
+}
+function v8Today(){ return v8DateStr(new Date()); }
+
+// Replace v7's week key (it put Sundays into the following week)
+getWeekKey = function(){ return weekKeyOf(v8Today()); };
+getWeekLogsForKey = function(wk){ return (data.logs||[]).filter(function(l){ return l.date && weekKeyOf(l.date)===wk; }); };
+
+// ─── One points table (what the cards show = what pays) ─────────
+function v8Rate(cat){ var r=CAT_PTS_PER_HR[normalizeCat(cat)]; return r===undefined?5:r; }
+calcPts = function(hours,cat){ return Math.round((hours||0)*v8Rate(cat)); };
+
+// Logging bonus for one day's entries (capped)
+function v8DayLogBonus(n){ return Math.min(n, V8.LOG_BONUS_MAX_PER_DAY)*V8.LOG_BONUS; }
+
+// ─── Logging streak: only entries logged on time count ──────────
+// An entry counts toward the daily streak if it was logged the same day
+// or the next day. Entries back-filled 2+ days later still earn points,
+// they just don't build the streak.
+function v8LoggedOnTime(l){
+  if(!l.loggedAt) return true;
+  var logged=v8DateStr(new Date(l.loggedAt));
+  return logged===l.date || logged===v8AddDays(l.date,1);
+}
+function v8StreakDays(d){
+  var logs=(d.logs||[]).filter(v8LoggedOnTime), days={};
+  logs.forEach(function(l){ days[l.date]=true; });
+  var s=0, cur=v8Today();
+  if(!days[cur]) cur=v8AddDays(cur,-1);       // today not logged yet doesn't break it
+  while(days[cur]){ s++; cur=v8AddDays(cur,-1); if(s>365) break; }
+  return s;
+}
+updateStreak = function(){
+  var streak=v8StreakDays(data);
+  var el=document.getElementById('streak-count');
+  if(el) el.innerHTML='<span class="text-2xl font-bold">'+streak+'</span> day'+(streak===1?'':'s')+' streak <i class="fas fa-fire text-orange-400"></i>';
+};
+
+// ─── Early bird: only for logging today's entry between 4am and 8am ─
+(function(orig){
+  recordPlanEvent = function(type){
+    if(type==='early_bird'){
+      var h=new Date().getHours();
+      var latest=(data.logs||[])[0];
+      if(h<4 || h>=8 || !latest || latest.date!==v8Today()) return;
+    }
+    if(type==='unplanned') return; // logging bonus is now computed from the logs themselves
+    orig(type);
+  };
+})(recordPlanEvent);
+
+// ─── Applications ───────────────────────────────────────────────
+function v8Apps(d){ return (d.applications||[]).filter(function(a){ return a && a.date; }); }
+
+// Weekly application stats + streak, computed from the data (no stored state)
+function v8AppWeeks(d){
+  var apps=v8Apps(d), goal=V8.APP_WEEKLY_GOAL, out={weeks:{}, currentStreak:0, freezeUsedThisMonth:false};
+  var counts={};
+  apps.forEach(function(a){ var k=weekKeyOf(a.date); counts[k]=(counts[k]||0)+1; });
+  var curMon=v8MondayOf(v8Today()), curKey=weekKeyOf(curMon);
+  if(!apps.length){ out.weeks[curKey]={count:0,hit:false,bonus:0,streak:0,froze:false,current:true}; return out; }
+  var first=apps.map(function(a){return a.date;}).sort()[0];
+  var mon=v8MondayOf(first), streak=0, freezes={};
+  var guard=0;
+  while(mon<=curMon && guard++<600){
+    var k=weekKeyOf(mon), n=counts[k]||0, hit=n>=goal, isCur=(mon===curMon), month=mon.slice(0,7);
+    var w={count:n,hit:hit,bonus:0,streak:0,froze:false,current:isCur,monday:mon};
+    if(hit){
+      streak++;
+      w.bonus=V8.STREAK_BONUS[Math.min(streak,V8.STREAK_BONUS.length)-1];
+    } else if(!isCur){
+      if((freezes[month]||0)<V8.STREAK_FREEZES_PER_MONTH && streak>0){ freezes[month]=(freezes[month]||0)+1; w.froze=true; }
+      else streak=0;
+    }
+    w.streak=streak;
+    out.weeks[k]=w;
+    mon=v8AddDays(mon,7);
+  }
+  out.currentStreak=streak;
+  out.freezeUsedThisMonth=(freezes[curMon.slice(0,7)]||0)>=V8.STREAK_FREEZES_PER_MONTH;
+  return out;
+}
+
+// Milestones: date achieved (or null)
+function v8MilestoneDates(d){
+  var apps=v8Apps(d), res={}, manual=d.milestones||{};
+  var dates=apps.map(function(a){return a.date;}).sort();
+  res.first_app=dates[0]||null;
+  var iv=apps.map(function(a){return a.interviewDate;}).filter(Boolean).sort();
+  res.first_interview=iv[0]||null;
+  var of=apps.map(function(a){return a.offerDate;}).filter(Boolean).sort();
+  res.first_offer=of[0]||null;
+  var aw=v8AppWeeks(d), full=null, s3=null;
+  Object.keys(aw.weeks).sort().forEach(function(k){
+    var w=aw.weeks[k];
+    if(w.hit && !full){
+      var inWk=dates.filter(function(x){return weekKeyOf(x)===k;});
+      full=inWk[V8.APP_WEEKLY_GOAL-1]||inWk[inWk.length-1];
+    }
+    if(w.streak>=3 && w.hit && !s3){
+      var inWk2=dates.filter(function(x){return weekKeyOf(x)===k;});
+      s3=inWk2[V8.APP_WEEKLY_GOAL-1]||inWk2[inWk2.length-1];
+    }
+  });
+  res.first_full_week=full; res.streak_3=s3;
+  V8_MILESTONES.forEach(function(m){ if(!m.auto) res[m.id]=(manual[m.id]&&manual[m.id].date)||null; });
+  return res;
+}
+
+// ─── Weekly points (single engine used by app, dashboard, email) ─
+function calcWeekPointsFor(d, wk){
+  var logs=(d.logs||[]).filter(function(l){ return l.date && weekKeyOf(l.date)===wk; });
+  var pts=0, breakdown=[];
+  function line(label,p){ if(p){ pts+=p; breakdown.push({label:label,pts:p}); } }
+
+  // Hours × category rate
+  var catHrs={};
+  logs.forEach(function(l){ var c=normalizeCat(l.category); catHrs[c]=(catHrs[c]||0)+(l.hours||0); });
+  Object.keys(catHrs).forEach(function(c){
+    var mul=v8Rate(c);
+    if(mul>0) line(c+' ('+catHrs[c].toFixed(1)+'h × '+mul+' pts/hr)', Math.round(catHrs[c]*mul));
+  });
+
+  // Logging bonus, capped per day
+  var perDay={};
+  logs.forEach(function(l){ perDay[l.date]=(perDay[l.date]||0)+1; });
+  var lb=0, ln=0; Object.keys(perDay).forEach(function(k){ lb+=v8DayLogBonus(perDay[k]); ln+=Math.min(perDay[k],V8.LOG_BONUS_MAX_PER_DAY); });
+  line('Logging bonus ('+ln+' entries × '+V8.LOG_BONUS+', max '+V8.LOG_BONUS_MAX_PER_DAY+'/day)', lb);
+
+  // Planning events (unchanged from v7)
+  var ev=(d.planEvents||[]).filter(function(e){ return e.weekKey===wk; });
+  function evc(type){ return ev.filter(function(e){return e.type===type;}).length; }
+  [['today','Today plans created',PTS.PLAN_TODAY],['tomorrow','Tomorrow plans created',PTS.PLAN_TOMORROW],
+   ['future','Future plans created',PTS.PLAN_FUTURE],['complete','Planned tasks completed',PTS.COMPLETE_PLANNED],
+   ['perfect_day','Perfect days',PTS.PERFECT_DAY]].forEach(function(r){ var n=evc(r[0]); if(n) line(r[1]+' (×'+n+')', n*r[2]); });
+  var early=evc('early_bird');
+  if(early>=5) line('Early bird ('+early+' mornings before 8am)', PTS.EARLY_BIRD);
+
+  // Weekly hour target
+  var totalHrs=logs.reduce(function(s,l){return s+(l.hours||0);},0);
+  if(totalHrs>=(d.weekGoal||40)) line('Weekly hour target hit 🎯', PTS.WEEKLY_TARGET);
+
+  // 7-day logging streak (current week only, on-time entries only)
+  if(wk===getWeekKey() && v8StreakDays(d)>=7) line('7-day logging streak 🔥', PTS.STREAK_7);
+
+  // Job search
+  var apps=v8Apps(d);
+  var nA=apps.filter(function(a){return weekKeyOf(a.date)===wk;}).length;
+  line('💼 Applications ('+nA+' × '+V8.PTS_APPLICATION+')', nA*V8.PTS_APPLICATION);
+  var nI=apps.filter(function(a){return a.interviewDate && weekKeyOf(a.interviewDate)===wk;}).length;
+  line('🤝 Interviews ('+nI+' × '+V8.PTS_INTERVIEW+')', nI*V8.PTS_INTERVIEW);
+  var nO=apps.filter(function(a){return a.offerDate && weekKeyOf(a.offerDate)===wk;}).length;
+  line('🏆 Offers ('+nO+' × '+V8.PTS_OFFER+')', nO*V8.PTS_OFFER);
+  var aw=v8AppWeeks(d).weeks[wk];
+  if(aw && aw.bonus) line('🔥 Application streak — week '+aw.streak, aw.bonus);
+
+  // Milestones hit this week
+  var md=v8MilestoneDates(d);
+  V8_MILESTONES.forEach(function(m){ if(md[m.id] && weekKeyOf(md[m.id])===wk) line(m.emoji+' Milestone: '+m.name, V8.PTS_MILESTONE); });
+
+  return {pts:Math.round(pts), breakdown:breakdown, totalHrs:totalHrs, apps:nA};
+}
+calcWeekPoints = function(wk){ return calcWeekPointsFor(data, wk); };
+
+// Badges: same as v7 but uses the on-time streak
+checkAndAwardBadges = function(wk,pts,logs,totalHrs){
+  if(!data.badges)data.badges=[];
+  var newBadges=[];
+  function has(id){ return data.badges.some(function(b){return b.id===id;}); }
+  function award(id){ var def=BADGE_DEFS.find(function(b){return b.id===id;}); if(!def||has(id))return; data.badges.push({id:id,earnedAt:new Date().toISOString(),weekKey:wk}); newBadges.push(def); }
+  var ev=(data.planEvents||[]).filter(function(e){return e.weekKey===wk;});
+  var prevBest=Math.max.apply(null,[0].concat((data.weeklyPointsHistory||[]).filter(function(w){return w.weekKey!==wk;}).map(function(w){return w.pts;})));
+  if(pts>prevBest&&pts>0)award('best_week');
+  if(pts>=850)award('apex_lynx');
+  if(logs.filter(function(l){return l.category==='Career';}).reduce(function(s,l){return s+(l.hours||0);},0)>=20)award('career_builder');
+  if(logs.filter(function(l){return l.category==='Learning';}).reduce(function(s,l){return s+(l.hours||0);},0)>=20)award('scholar');
+  if(logs.filter(function(l){return l.category==='Fitness';}).length>=5)award('iron_week');
+  if(v8StreakDays(data)>=7)award('on_fire');
+  if(ev.filter(function(e){return e.type==='perfect_day';}).length>=1)award('perfect_day');
+  if(ev.filter(function(e){return e.type==='early_bird';}).length>=5)award('early_bird');
+  if(new Set(ev.filter(function(e){return e.type==='tomorrow';}).map(function(e){return e.date;})).size>=5)award('planner');
+  var recent3=(data.weeklyPointsHistory||[]).filter(function(w){return w.weekKey!==wk;}).slice(-3);
+  if(recent3.length>=3&&recent3.every(function(w){return w.hitTarget;})&&totalHrs>=(data.weekGoal||40))award('goal_crusher');
+  return newBadges;
+};
+
+// ─── v8 UI: Job Search tab, Today card, History, Dashboard, Email ──
+
+function v8Esc(s){ return esc(s); }
+function v8Fmt(s){ if(!s) return ''; var d=v8ParseDate(s); return d.toLocaleDateString('en-US',{month:'short',day:'numeric'}); }
+
+// ── Actions ──
+function v8AddApp(){
+  var emp=(document.getElementById('v8-emp').value||'').trim();
+  var role=(document.getElementById('v8-role').value||'').trim();
+  var date=document.getElementById('v8-date').value||v8Today();
+  var link=(document.getElementById('v8-link').value||'').trim();
+  if(!emp){ showToast('⚠️ Enter the employer.'); document.getElementById('v8-emp').focus(); return; }
+  if(!role){ showToast('⚠️ Enter the job title.'); document.getElementById('v8-role').focus(); return; }
+  if(date>v8Today()) date=v8Today();
+  if(!data.applications) data.applications=[];
+  data.applications.unshift({id:uid(),employer:emp,role:role,date:date,link:link,status:'Applied',loggedAt:new Date().toISOString()});
+  ['v8-emp','v8-role','v8-link'].forEach(function(id){ document.getElementById(id).value=''; });
+  var n=v8Apps(data).filter(function(a){return weekKeyOf(a.date)===getWeekKey();}).length;
+  showToast('💼 +'+V8.PTS_APPLICATION+' pts — '+n+' of '+V8.APP_WEEKLY_GOAL+' this week'+(n===V8.APP_WEEKLY_GOAL?' 🔥 streak bonus unlocked!':''),3500);
+  saveData();
+}
+function v8SetStatus(id,status){
+  var a=(data.applications||[]).find(function(x){return x.id===id;}); if(!a) return;
+  a.status=status;
+  if(status==='Interview' && !a.interviewDate){ a.interviewDate=v8Today(); showToast('🤝 Interview! +'+V8.PTS_INTERVIEW+' pts',3500); }
+  if(status==='Offer' && !a.offerDate){ a.offerDate=v8Today(); showToast('🏆 Offer! +'+V8.PTS_OFFER+' pts',3500); }
+  saveData();
+}
+function v8DelApp(id){
+  if(!confirm('Delete this application?')) return;
+  data.applications=(data.applications||[]).filter(function(x){return x.id!==id;});
+  saveData();
+}
+function v8ToggleMilestone(id){
+  if(!data.milestones) data.milestones={};
+  if(data.milestones[id]){
+    if(data.milestones[id].date!==v8Today()){ showToast('Already counted — ask Dad if this needs undoing.'); return; }
+    if(!confirm('Un-check this milestone?')) return; delete data.milestones[id];
+  }
+  else { data.milestones[id]={date:v8Today()}; showToast('🎉 Milestone! +'+V8.PTS_MILESTONE+' pts',3500); }
+  saveData();
+}
+function v8GoLogApp(){ switchTab(9); setTimeout(function(){ var e=document.getElementById('v8-emp'); if(e) e.focus(); },150); }
+
+// ── Shared pieces ──
+function v8StreakText(d){
+  var aw=v8AppWeeks(d), cur=aw.weeks[getWeekKey()]||{count:0,hit:false,streak:0};
+  var goal=V8.APP_WEEKLY_GOAL, left=Math.max(0,goal-cur.count);
+  var next=cur.hit ? cur.streak : aw.currentStreak+1;
+  var bonus=V8.STREAK_BONUS[Math.min(next,V8.STREAK_BONUS.length)-1];
+  return {count:cur.count, goal:goal, left:left, hit:cur.hit, streak:cur.hit?cur.streak:aw.currentStreak, next:next, bonus:bonus, freezeUsed:aw.freezeUsedThisMonth};
+}
+
+// ── Today tab card ──
+function v8RenderTodayCard(){
+  var el=document.getElementById('v8-today-card'); if(!el) return;
+  var s=v8StreakText(data), pct=Math.min(100,Math.round(s.count/s.goal*100));
+  el.innerHTML='<div class="flex items-center justify-between mb-2"><h3 class="font-semibold flex items-center gap-2"><i class="fas fa-briefcase text-violet-400"></i> Job Search</h3>'
+   +'<span class="text-xs text-orange-400 font-semibold">'+(s.streak>0?'🔥 '+s.streak+'-week streak':'')+'</span></div>'
+   +'<div class="flex items-end justify-between"><div><span class="text-4xl font-bold text-violet-400">'+s.count+'</span><span class="text-zinc-400"> / '+s.goal+' applications</span></div></div>'
+   +'<div class="h-3 bg-zinc-800 rounded-full mt-3 overflow-hidden"><div class="h-full bg-gradient-to-r from-violet-500 to-fuchsia-400" style="width:'+pct+'%"></div></div>'
+   +'<p class="text-xs mt-2 '+(s.hit?'text-emerald-400':'text-zinc-400')+'">'+(s.hit?'Goal hit — +'+s.bonus+' streak bonus locked in this week ✓':s.left+' more by Sunday → +'+s.bonus+' streak bonus (week '+s.next+')')+'</p>'
+   +'<button onclick="v8GoLogApp()" class="mt-4 w-full py-3 rounded-2xl bg-violet-600 hover:bg-violet-500 font-semibold text-sm flex items-center justify-center gap-2"><i class="fas fa-paper-plane"></i> Log an application (+'+V8.PTS_APPLICATION+')</button>';
+}
+
+// ── Job Search tab ──
+function renderJobSearch(){
+  var el=document.getElementById('v8-jobsearch'); if(!el) return;
+  var s=v8StreakText(data), apps=v8Apps(data).slice().sort(function(a,b){return b.date.localeCompare(a.date);});
+  var md=v8MilestoneDates(data), pct=Math.min(100,Math.round(s.count/s.goal*100));
+  var ladder=V8.STREAK_BONUS.map(function(b,i){
+    var on=(s.hit?s.streak:s.streak)>i;
+    return '<div class="flex-1 text-center rounded-xl py-2 '+(on?'bg-orange-950 border border-orange-800 text-orange-300':'bg-zinc-800 text-zinc-500')+'"><div class="text-xs">Week '+(i+1)+(i===V8.STREAK_BONUS.length-1?'+':'')+'</div><div class="font-bold">+'+b+'</div></div>';
+  }).join('');
+  var statusSel=function(a){ return '<select onchange="v8SetStatus(\''+a.id+'\',this.value)" class="bg-zinc-900 rounded-lg px-2 py-1 text-xs focus:outline-none">'+V8_STATUSES.map(function(st){return '<option'+(a.status===st?' selected':'')+'>'+st+'</option>';}).join('')+'</select>'; };
+  var rows=apps.length?apps.map(function(a){
+    var col=a.status==='Offer'?'#facc15':a.status==='Interview'?'#4ade80':a.status==='Rejected'?'#f87171':'#a78bfa';
+    return '<div class="flex items-center gap-3 bg-zinc-800 rounded-2xl p-3">'
+      +'<div class="w-1 self-stretch rounded-full" style="background:'+col+'"></div>'
+      +'<div class="flex-1 min-w-0"><div class="font-medium text-sm truncate">'+v8Esc(a.employer)+' <span class="text-zinc-400 font-normal">— '+v8Esc(a.role)+'</span></div>'
+      +'<div class="text-xs text-zinc-500">'+v8Fmt(a.date)+(a.interviewDate?' · interview '+v8Fmt(a.interviewDate):'')+(a.offerDate?' · offer '+v8Fmt(a.offerDate):'')
+      +(a.link?' · <a href="'+v8Esc(a.link)+'" target="_blank" rel="noopener" class="text-violet-400 hover:underline">posting</a>':'')+'</div></div>'
+      +statusSel(a)
+      +'<button onclick="v8DelApp(\''+a.id+'\')" class="text-zinc-600 hover:text-red-400 p-1.5"><i class="fas fa-trash text-xs"></i></button></div>';
+  }).join(''):'<p class="text-zinc-500 text-sm text-center py-6">No applications yet. Your first one is a milestone.</p>';
+  var ms=V8_MILESTONES.map(function(m){
+    var done=!!md[m.id];
+    var click=m.auto?'':' onclick="v8ToggleMilestone(\''+m.id+'\')" style="cursor:pointer"';
+    return '<div'+click+' class="flex items-center gap-3 rounded-2xl p-3 '+(done?'bg-emerald-950 border border-emerald-800':'bg-zinc-800 border border-zinc-800')+'">'
+      +'<span class="text-2xl '+(done?'':'grayscale opacity-40')+'">'+m.emoji+'</span>'
+      +'<div class="flex-1 min-w-0"><div class="text-sm font-medium '+(done?'text-emerald-300':'text-zinc-300')+'">'+m.name+'</div>'
+      +'<div class="text-xs text-zinc-500">'+(done?'Done '+v8Fmt(md[m.id])+' · ':'')+v8Esc(m.reward)+' · +'+V8.PTS_MILESTONE+' pts</div></div>'
+      +(m.auto?'<span class="text-xs text-zinc-600">auto</span>':'<span class="w-6 h-6 rounded-md border-2 flex items-center justify-center '+(done?'bg-emerald-500 border-emerald-500':'border-zinc-500')+'">'+(done?'<i class="fas fa-check text-xs text-white"></i>':'')+'</span>')
+      +'</div>';
+  }).join('');
+
+  el.innerHTML=
+   '<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">'
+   +'<div class="space-y-6">'
+     +'<div class="card bg-zinc-900 rounded-3xl p-6">'
+       +'<h2 class="text-lg font-semibold mb-4 flex items-center gap-2"><i class="fas fa-paper-plane text-violet-400"></i> Log an application</h2>'
+       +'<div class="space-y-3">'
+       +'<input id="v8-emp" placeholder="Employer (e.g. Hunterdon County)" class="w-full bg-zinc-800 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-violet-500 placeholder-zinc-500">'
+       +'<input id="v8-role" placeholder="Job title (e.g. HR Assistant)" onkeydown="if(event.key===\'Enter\')v8AddApp()" class="w-full bg-zinc-800 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-violet-500 placeholder-zinc-500">'
+       +'<div class="flex gap-3"><input id="v8-date" type="date" value="'+v8Today()+'" max="'+v8Today()+'" class="bg-zinc-800 rounded-xl px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500">'
+       +'<input id="v8-link" placeholder="Link to posting (optional)" class="flex-1 min-w-0 bg-zinc-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 placeholder-zinc-500"></div>'
+       +'<button onclick="v8AddApp()" class="w-full py-4 rounded-2xl bg-violet-600 hover:bg-violet-500 font-semibold flex items-center justify-center gap-2"><i class="fas fa-check-circle"></i> Log application (+'+V8.PTS_APPLICATION+' pts)</button>'
+       +'</div></div>'
+     +'<div class="card bg-zinc-900 rounded-3xl p-6">'
+       +'<div class="flex items-center justify-between mb-1"><h3 class="font-semibold">This week</h3><span class="text-sm text-orange-400 font-semibold">'+(s.streak>0?'🔥 '+s.streak+'-week streak':'No streak yet')+'</span></div>'
+       +'<div class="mt-2"><span class="text-5xl font-bold text-violet-400">'+s.count+'</span><span class="text-zinc-400"> / '+s.goal+' applications</span></div>'
+       +'<div class="h-3 bg-zinc-800 rounded-full mt-3 overflow-hidden"><div class="h-full bg-gradient-to-r from-violet-500 to-fuchsia-400" style="width:'+pct+'%"></div></div>'
+       +'<p class="text-sm mt-3 '+(s.hit?'text-emerald-400':'text-zinc-300')+'">'+(s.hit?'Goal hit — +'+s.bonus+' streak bonus this week ✓':s.left+' more by Sunday keeps the streak and earns +'+s.bonus)+'</p>'
+       +'<div class="flex gap-2 mt-4">'+ladder+'</div>'
+       +'<p class="text-xs text-zinc-500 mt-3">The bonus grows every week in a row you hit '+s.goal+'. Miss a week and you get one free pass per month'+(s.freezeUsed?' — <span class="text-amber-400">this month\'s pass is used</span>':' — <span class="text-emerald-400">pass available</span>')+'. Interview +'+V8.PTS_INTERVIEW+', offer +'+V8.PTS_OFFER+' (set the status on the application).</p>'
+     +'</div>'
+   +'</div>'
+   +'<div class="space-y-6">'
+     +'<div class="card bg-zinc-900 rounded-3xl p-6"><h3 class="font-semibold mb-4 flex items-center gap-2"><i class="fas fa-list-check text-violet-400"></i> Applications <span class="text-zinc-500 font-normal text-sm">('+apps.length+')</span></h3><div class="space-y-2 max-h-[28rem] overflow-y-auto pr-1">'+rows+'</div></div>'
+     +'<div class="card bg-zinc-900 rounded-3xl p-6"><h3 class="font-semibold mb-1 flex items-center gap-2"><i class="fas fa-flag-checkered text-emerald-400"></i> Milestones</h3><p class="text-xs text-zinc-500 mb-4">Tap the ones with a box when you do them. The rest check themselves.</p><div class="space-y-2">'+ms+'</div></div>'
+   +'</div></div>';
+}
+
+// ── History: day totals include logging bonus + applications ──
+renderHistory = function(){
+  var container=document.getElementById('history'); if(!container) return;
+  var q=(document.getElementById('history-search')?document.getElementById('history-search').value:'').toLowerCase();
+  var statsEl=document.getElementById('hist-day-stats');
+  var nextBtn=document.getElementById('hist-next-btn');
+  if(nextBtn) nextBtn.style.opacity=(_histDate>=v8Today())?'0.3':'1';
+  var labelEl=document.getElementById('hist-day-label');
+  function dayLabel(ds,long){
+    if(ds===v8Today()) return 'Today';
+    if(ds===v8AddDays(v8Today(),-1)) return 'Yesterday';
+    return v8ParseDate(ds).toLocaleDateString('en-US',long?{weekday:'long',month:'short',day:'numeric'}:{weekday:'short',month:'short',day:'numeric'});
+  }
+  if(labelEl) labelEl.textContent=dayLabel(_histDate,true);
+  var apps=v8Apps(data);
+  function dayPts(ds){
+    var L=data.logs.filter(function(l){return l.date===ds;});
+    var A=apps.filter(function(a){return a.date===ds;});
+    var p=L.reduce(function(s,l){return s+calcPts(l.hours,l.category);},0)+v8DayLogBonus(L.length)+A.length*V8.PTS_APPLICATION;
+    return {logs:L,apps:A,hrs:L.reduce(function(s,l){return s+(l.hours||0);},0),pts:p,bonus:v8DayLogBonus(L.length)};
+  }
+  function logCard(log,showDate){
+    var c=catColor(log.category);
+    return '<div class="bg-zinc-900 rounded-2xl p-4"><div class="flex justify-between text-xs text-zinc-500 mb-2"><span>'+(showDate?esc(log.date||''):'')+'</span><div class="flex items-center gap-2">'
+     +'<span class="px-2 py-0.5 rounded-full" style="background:'+c+'22;color:'+c+'">'+esc(log.category||'')+'</span><span class="font-mono">'+(log.hours||0)+'h</span>'
+     +'<span class="font-semibold text-violet-400">+'+calcPts(log.hours,log.category)+'pts</span></div></div>'
+     +'<div class="font-medium text-sm">'+esc(log.activity)+'</div>'
+     +(log.futureBenefit?'<div class="text-xs text-emerald-300 mt-1">'+esc(log.futureBenefit)+'</div>':'')
+     +'<div class="flex items-center gap-2 mt-2 flex-wrap"><button data-id="'+log.id+'" data-action="reuse" class="plan-action-btn text-violet-300 border-violet-800 hover:bg-violet-950"><i class="fas fa-redo" style="font-size:9px"></i> Re-use</button>'
+     +'<button data-id="'+log.id+'" data-action="delete" class="plan-action-btn text-zinc-500 border-zinc-700 hover:text-red-400 hover:border-red-800"><i class="fas fa-trash" style="font-size:9px"></i> Delete</button></div></div>';
+  }
+  function appCard(a){
+    return '<div class="bg-violet-950 border border-violet-800 rounded-2xl p-4"><div class="flex justify-between text-xs mb-2"><span class="text-violet-300"><i class="fas fa-briefcase"></i> Application</span><span class="font-semibold text-violet-300">+'+V8.PTS_APPLICATION+'pts</span></div>'
+     +'<div class="font-medium text-sm">'+esc(a.employer)+'</div><div class="text-xs text-zinc-400 mt-1">'+esc(a.role)+' · '+esc(a.status||'Applied')+'</div></div>';
+  }
+  function bonusNote(b){ return b?' · incl. +'+b+' logging bonus':''; }
+  var html='';
+  if(q){
+    var f=data.logs.filter(function(l){return l.activity.toLowerCase().indexOf(q)>=0||(l.futureBenefit||'').toLowerCase().indexOf(q)>=0;});
+    var fa=apps.filter(function(a){return (a.employer+' '+a.role).toLowerCase().indexOf(q)>=0;});
+    if(statsEl) statsEl.textContent=(f.length+fa.length)+' result'+((f.length+fa.length)===1?'':'s');
+    html=fa.map(appCard).join('')+f.map(function(l){return logCard(l,true);}).join('');
+    if(!html) html='<p class="col-span-full text-center py-16 text-zinc-500">No matching entries.</p>';
+  } else if(_histMode==='week'){
+    var tot={h:0,p:0,n:0}, days=[];
+    for(var i=0;i<7;i++){ var ds=v8AddDays(v8Today(),-i), dp=dayPts(ds); if(dp.logs.length||dp.apps.length){ days.push([ds,dp]); tot.h+=dp.hrs; tot.p+=dp.pts; tot.n+=dp.logs.length+dp.apps.length; } }
+    if(statsEl) statsEl.textContent=tot.n+' entries · '+tot.h.toFixed(1)+'h · '+tot.p+' pts (weekly bonuses on Points tab)';
+    if(!days.length) html='<p class="col-span-full text-center py-16 text-zinc-500">No activity in the past 7 days.</p>';
+    days.forEach(function(x){
+      var ds=x[0], dp=x[1];
+      html+='<div class="col-span-full mb-4"><div class="flex items-center gap-3 mb-2"><div class="text-sm font-semibold text-zinc-300">'+dayLabel(ds,false)+'</div>'
+        +'<div class="text-xs text-zinc-500">'+dp.hrs.toFixed(1)+'h · '+dp.pts+' pts'+bonusNote(dp.bonus)+'</div><div class="flex-1 h-px bg-zinc-800"></div></div>'
+        +'<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">'+dp.apps.map(appCard).join('')+dp.logs.map(function(l){return logCard(l,false);}).join('')+'</div></div>';
+    });
+  } else {
+    var dd=dayPts(_histDate);
+    if(statsEl) statsEl.textContent=(dd.logs.length||dd.apps.length)?dd.hrs.toFixed(1)+'h · '+dd.pts+' pts'+bonusNote(dd.bonus):'Nothing logged';
+    html=dd.apps.map(appCard).join('')+dd.logs.map(function(l){return logCard(l,false);}).join('');
+    if(!html) html='<p class="col-span-full text-center py-16 text-zinc-500">'+(_histDate===v8Today()?'Nothing logged today yet.':'Nothing logged on this day.')+'</p>';
+  }
+  container.innerHTML=html;
+};
+
+// ── Points tab: accurate guide ──
+(function(orig){
+  renderPointsBadgesTab=function(){
+    orig();
+    var g=document.getElementById('pb-guide'); if(!g) return;
+    function row(l,p,c){ return '<div class="flex items-center justify-between py-2 border-b border-zinc-800"><span class="text-sm text-zinc-300">'+l+'</span><span class="font-mono font-bold '+(c||'text-emerald-400')+' shrink-0 ml-3">'+p+'</span></div>'; }
+    var h='<p class="text-xs text-zinc-500 uppercase tracking-widest mb-2">Job Search</p>'
+      +row('Log an application','+'+V8.PTS_APPLICATION,'text-violet-400')
+      +row(V8.APP_WEEKLY_GOAL+' applications in a week (streak)','+'+V8.STREAK_BONUS.join(' → +'),'text-orange-400')
+      +row('Application reaches interview','+'+V8.PTS_INTERVIEW,'text-emerald-400')
+      +row('Offer','+'+V8.PTS_OFFER,'text-yellow-400')
+      +row('Milestone (one time each)','+'+V8.PTS_MILESTONE,'text-emerald-400')
+      +'<p class="text-xs text-zinc-500 uppercase tracking-widest mt-4 mb-2">Everyday</p>'
+      +row('Each entry logged (max '+V8.LOG_BONUS_MAX_PER_DAY+'/day)','+'+V8.LOG_BONUS,'text-violet-400')
+      +row('Create a Today / Tomorrow / Future plan','+'+PTS.PLAN_TODAY+' / +'+PTS.PLAN_TOMORROW+' / +'+PTS.PLAN_FUTURE,'text-blue-400')
+      +row('Complete a planned task','+'+PTS.COMPLETE_PLANNED)
+      +row('Perfect day (all planned tasks done)','+'+PTS.PERFECT_DAY,'text-yellow-400')
+      +row('Log today\'s entry 4–8am, 5 days','+'+PTS.EARLY_BIRD,'text-orange-400')
+      +row('Hit weekly hour target','+'+PTS.WEEKLY_TARGET)
+      +row('7-day logging streak (logged same/next day)','+'+PTS.STREAK_7,'text-red-400')
+      +'<p class="text-xs text-zinc-500 uppercase tracking-widest mt-4 mb-2">Per hour, by category</p>'
+      +Object.keys(CAT_PTS_PER_HR).map(function(c){ var m=CAT_PTS_PER_HR[c]; return row(c, m>0?'+'+m+' pts/hr':'0', m>0?'text-emerald-400':'text-zinc-600'); }).join('');
+    g.innerHTML=h;
+  };
+})(renderPointsBadgesTab);
+
+// ── Weekly email: add job search section ──
+(function(orig){
+  buildEmail=function(wk,logs,pts,tier,newBadges,allBadges,breakdown,reflection,weekLabel){
+    var body=orig(wk,logs,pts,tier,newBadges,allBadges,breakdown,reflection,weekLabel);
+    var apps=v8Apps(data).filter(function(a){return weekKeyOf(a.date)===wk;});
+    var s=v8AppWeeks(data).weeks[wk]||{count:0,streak:0,hit:false};
+    var md=v8MilestoneDates(data);
+    var hit=V8_MILESTONES.filter(function(m){return md[m.id]&&weekKeyOf(md[m.id])===wk;});
+    var pipe=v8Apps(data).filter(function(a){return a.status==='Interview'||a.status==='Offer';});
+    var sec='JOB SEARCH\nApplications: '+apps.length+' / '+V8.APP_WEEKLY_GOAL+(s.hit?'  ✓ goal hit':'')+'\nApplication streak: '+s.streak+' week'+(s.streak===1?'':'s')+'\n'
+      +(apps.length?apps.map(function(a){return '  ['+a.date+'] '+a.employer+' — '+a.role;}).join('\n')+'\n':'  None logged this week.\n')
+      +(pipe.length?'In play:\n'+pipe.map(function(a){return '  '+a.employer+' — '+a.role+' ('+a.status+')';}).join('\n')+'\n':'')
+      +(hit.length?'Milestones hit:\n'+hit.map(function(m){return '  '+m.emoji+' '+m.name;}).join('\n')+'\n':'')+'\n';
+    return body.replace('HOURS BY CATEGORY', sec+'HOURS BY CATEGORY');
+  };
+})(buildEmail);
+
+// ── Parent dashboard: same engine as Ben's screen ──
+renderParentDashboard=function(sonData){
+  var el=document.getElementById('parent-dashboard-content'); if(!el) return;
+  if(!sonData){ el.innerHTML='<p style="color:#52525b;text-align:center;padding:48px 0">No data yet — Ben needs to log some activities first.</p>'; return; }
+  var wk=getWeekKey(), r=calcWeekPointsFor(sonData,wk), tier=getAllowanceTier(r.pts);
+  var goal=sonData.weekGoal||40, pct=Math.min(100,Math.round(r.totalHrs/goal*100));
+  var s=v8StreakText(sonData), md=v8MilestoneDates(sonData);
+  var logs=(sonData.logs||[]).filter(function(l){return l.date&&weekKeyOf(l.date)===wk;});
+  var cm={}; logs.forEach(function(l){var c=normalizeCat(l.category); cm[c]=(cm[c]||0)+(l.hours||0);});
+  var card=function(t,v,sub,col){ return '<div style="background:#18181b;border-radius:14px;padding:18px"><div style="color:#71717a;font-size:.75rem;margin-bottom:4px">'+t+'</div><div style="font-size:2rem;font-weight:700;color:'+col+'">'+v+'</div><div style="color:#71717a;font-size:.75rem;margin-top:4px">'+sub+'</div></div>'; };
+  var box=function(t,inner){ return '<div style="background:#18181b;border-radius:14px;padding:18px"><h3 style="font-size:.9rem;font-weight:600;margin:0 0 12px;color:#f4f4f5">'+t+'</h3>'+inner+'</div>'; };
+  var catBars=Object.keys(cm).sort(function(a,b){return cm[b]-cm[a];}).map(function(c){ var col=catColor(c),w=r.totalHrs>0?Math.round(cm[c]/r.totalHrs*100):0;
+    return '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px"><div style="width:8px;height:8px;border-radius:50%;background:'+col+'"></div><div style="flex:1;font-size:.85rem;color:#d4d4d8">'+c+'</div><div style="width:80px;height:4px;background:#3f3f46;border-radius:4px;overflow:hidden"><div style="width:'+w+'%;height:100%;background:'+col+'"></div></div><div style="font-size:.8rem;color:#a1a1aa;width:36px;text-align:right">'+cm[c].toFixed(1)+'h</div></div>'; }).join('')||'<p style="color:#52525b;font-size:.85rem">No activity this week.</p>';
+  var bd=r.breakdown.map(function(b){return '<div style="display:flex;justify-content:space-between;font-size:.8rem;padding:4px 0;border-bottom:1px solid #27272a"><span style="color:#a1a1aa">'+esc(b.label)+'</span><span style="color:#4ade80;font-family:monospace">+'+b.pts+'</span></div>';}).join('')||'<p style="color:#52525b;font-size:.85rem">No points yet.</p>';
+  var apps=v8Apps(sonData).slice().sort(function(a,b){return b.date.localeCompare(a.date);}).slice(0,10);
+  var appRows=apps.map(function(a){ return '<div style="display:flex;gap:8px;padding:7px 0;border-bottom:1px solid #27272a;font-size:.85rem"><div style="flex:1;min-width:0;color:#e4e4e7;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(a.employer)+' <span style="color:#71717a">— '+esc(a.role)+'</span></div><div style="color:#a78bfa;flex-shrink:0">'+esc(a.status||'Applied')+'</div><div style="color:#71717a;flex-shrink:0;width:52px;text-align:right">'+v8Fmt(a.date)+'</div></div>'; }).join('')||'<p style="color:#52525b;font-size:.85rem">No applications logged yet.</p>';
+  var msRows=V8_MILESTONES.map(function(m){ var d=md[m.id]; return '<div style="display:flex;gap:8px;padding:6px 0;font-size:.85rem;color:'+(d?'#6ee7b7':'#52525b')+'"><span>'+m.emoji+'</span><span style="flex:1">'+m.name+'</span><span>'+(d?v8Fmt(d):'—')+'</span></div>'; }).join('');
+  var recent=(sonData.logs||[]).slice().sort(function(a,b){return (b.date||'').localeCompare(a.date||'');}).slice(0,8).map(function(l){ var col=catColor(l.category);
+    return '<div style="display:flex;align-items:start;gap:8px;padding:8px 0;border-bottom:1px solid #27272a"><div style="width:7px;height:7px;border-radius:50%;background:'+col+';margin-top:5px"></div><div style="flex:1;min-width:0"><div style="font-size:.85rem;color:#e4e4e7;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(l.activity||'')+'</div><div style="font-size:.75rem;color:#71717a">'+esc(l.category||'')+' · '+(l.date||'')+'</div></div><div style="font-size:.85rem;color:#a78bfa">'+(l.hours||0)+'h · +'+calcPts(l.hours,l.category)+'</div></div>'; }).join('');
+  el.innerHTML='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin-bottom:18px">'
+    +card('This Week',r.totalHrs.toFixed(1)+'<span style="font-size:.9rem;color:#52525b;font-weight:400"> / '+goal+'h</span>',pct+'% of goal','#34d399')
+    +card('Points',r.pts,tier.weekly>0?'$'+tier.weekly.toFixed(2)+' tier ('+tier.label+')':(300-r.pts)+' pts to allowance','#a78bfa')
+    +card('Applications',s.count+'<span style="font-size:.9rem;color:#52525b;font-weight:400"> / '+s.goal+'</span>',s.hit?'goal hit ✓':s.left+' to go this week','#c084fc')
+    +card('App Streak',s.streak+'<span style="font-size:.9rem;color:#52525b;font-weight:400"> wk</span>',s.freezeUsed?'free pass used this month':'free pass available','#fb923c')
+    +'</div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px">'
+    +box('Applications',appRows)+box('Points Breakdown (what pays)',bd)
+    +box('Milestones',msRows)+box('By Category',catBars)
+    +box('Recent Activity',recent||'<p style="color:#52525b;font-size:.85rem">No activity logged yet.</p>')
+    +'</div>';
+};
+
+// ── Tab + render hooks ──
+(function(orig){ switchTab=function(n,dir){ orig(n,dir); if(n===9) renderJobSearch(); }; })(switchTab);
+(function(orig){ renderAll=function(){ orig(); v8RenderTodayCard(); if(_activeTab===9) renderJobSearch(); }; })(renderAll);
+
+// ── Less friction on the log form: Future Impact becomes an optional note ──
+function v8InitForm(){
+  var fi=document.getElementById('future-input'); if(!fi||document.getElementById('v8-note-toggle')) return;
+  var wrap=fi.parentElement; wrap.style.display='none';
+  var lbl=wrap.querySelector('label'); if(lbl) lbl.textContent='Note (optional)';
+  fi.placeholder='Anything worth remembering about this?';
+  var t=document.createElement('button'); t.id='v8-note-toggle'; t.type='button';
+  t.className='mt-3 text-xs text-zinc-500 hover:text-violet-400'; t.innerHTML='<i class="fas fa-plus" style="font-size:9px"></i> Add a note (optional)';
+  t.onclick=function(){ wrap.style.display='block'; t.style.display='none'; fi.focus(); };
+  wrap.parentElement.insertBefore(t,wrap);
+}
+// Notes are optional now — don't stuff the category slogan in when blank
+(function(orig){ addTodayEntry=function(){
+  var fi=document.getElementById('future-input'), blank=!(fi&&fi.value.trim()), before=data.logs.length;
+  orig();
+  if(blank && data.logs.length>before && data.logs[0]){ data.logs[0].futureBenefit=''; saveData(); }
+}; })(addTodayEntry);
+
+document.addEventListener('DOMContentLoaded',v8InitForm);
+if(document.readyState!=='loading') v8InitForm();
+
+</script>
 </body>
 </html>
