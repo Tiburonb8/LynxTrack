@@ -3828,6 +3828,25 @@ if(typeof exportData==='function'){
   };
 }
 
+// ── View As Son shortcut in the header (parents only), so it's not buried in the Dashboard tab ──
+function v8ParentHeaderButton(){
+  if(typeof enterViewAsSon!=='function') return;
+  var isParent=_currentUser&&(_currentUser.uid===PARENT1_UID||_currentUser.uid===PARENT2_UID);
+  var b=document.getElementById('v8-viewas-btn');
+  if(!isParent){ if(b) b.style.display='none'; return; }
+  if(!b){
+    var host=document.querySelector('.app-header-right'); if(!host) return;
+    b=document.createElement('button'); b.id='v8-viewas-btn';
+    b.className='px-3 py-1.5 text-xs bg-violet-950 hover:bg-violet-900 text-violet-300 rounded-xl flex items-center gap-1.5';
+    b.onclick=function(){ if(typeof _viewingAsSon!=='undefined'&&_viewingAsSon) exitViewAsSon(); else enterViewAsSon(); };
+    var sub=document.getElementById('submit-btn'); host.insertBefore(b, sub||host.firstChild);
+  }
+  b.style.display='flex';
+  var on=(typeof _viewingAsSon!=='undefined')&&_viewingAsSon;
+  b.innerHTML=on?'<i class="fas fa-arrow-left" style="font-size:.75rem"></i> My View':'<i class="fas fa-eye" style="font-size:.75rem"></i> View As Son';
+}
+(function(orig){ renderAll=function(){ orig(); v8ParentHeaderButton(); }; })(renderAll);
+
 </script>
 </body>
 </html>
