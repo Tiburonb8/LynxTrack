@@ -154,7 +154,7 @@ function hideViewAsBanner(){
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <style>
-  
+
   /* ── PWA ── */
   body{padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom);}
   *{-webkit-tap-highlight-color:transparent;}
@@ -420,7 +420,10 @@ function hideViewAsBanner(){
       <i class="fas fa-paper-plane" style="font-size:.75rem"></i> <span id="submit-btn-label">Submit Log</span>
     </button>
     <button onclick="exportData()" class="px-3 py-1.5 text-xs bg-sky-950 hover:bg-sky-900 text-sky-400 rounded-xl flex items-center gap-1.5">
-      <i class="fas fa-download" style="font-size:.75rem"></i> Export Data
+      <i class="fas fa-file-lines" style="font-size:.75rem"></i> Export Report
+    </button>
+    <button onclick="exportRawJSON()" title="Raw backup file (JSON) — for re-importing data, not for reading" class="px-2 py-1.5 text-xs bg-zinc-900 hover:bg-zinc-800 text-zinc-500 rounded-xl flex items-center gap-1.5">
+      <i class="fas fa-code" style="font-size:.7rem"></i> Raw JSON
     </button>
     <button onclick="resetAllData()" class="px-3 py-1.5 text-xs bg-zinc-900 hover:bg-red-950 text-red-400 rounded-xl flex items-center gap-1.5">
       <i class="fas fa-trash" style="font-size:.75rem"></i> Clear All
@@ -433,12 +436,13 @@ function hideViewAsBanner(){
   <!-- Tabs -->
   <div class="tabs-bar-wrapper"><div class="tabs-bar">
     <button onclick="switchTab(0)" id="tab-0" class="tab-active px-6 py-4 font-medium flex-1 md:flex-none">Today</button>
-    <button onclick="switchTab(9)" id="tab-9" class="px-6 py-4 font-medium flex-1 md:flex-none text-zinc-400 hover:text-zinc-200">💼 Job Search</button>
     <button onclick="switchTab(1)" id="tab-1" class="px-6 py-4 font-medium flex-1 md:flex-none text-zinc-400 hover:text-zinc-200">Tomorrow</button>
+    <button onclick="switchTab(9)" id="tab-9" class="px-6 py-4 font-medium flex-1 md:flex-none text-zinc-400 hover:text-zinc-200">💼 Job Search</button>
     <button onclick="switchTab(2)" id="tab-2" class="px-6 py-4 font-medium flex-1 md:flex-none text-zinc-400 hover:text-zinc-200">Analytics</button>
     <button onclick="switchTab(3)" id="tab-3" class="px-6 py-4 font-medium flex-1 md:flex-none text-zinc-400 hover:text-zinc-200">History</button>
     <button onclick="switchTab(4)" id="tab-4" class="px-6 py-4 font-medium flex-1 md:flex-none text-zinc-400 hover:text-zinc-200">📅 Future Plans</button>
     <button onclick="switchTab(5)" id="tab-5" class="px-6 py-4 font-medium flex-1 md:flex-none text-zinc-400 hover:text-zinc-200">🏆 Points & Badges</button>
+    <button onclick="switchTab(10)" id="tab-10" class="px-6 py-4 font-medium flex-1 md:flex-none text-zinc-400 hover:text-zinc-200">🎟️ Stickers</button>
     <button onclick="switchTab(6)" id="tab-6" class="px-6 py-4 font-medium flex-1 md:flex-none text-zinc-400 hover:text-zinc-200">🎯 6-Month Goals</button>
     <button onclick="switchTab(7)" id="tab-7" class="px-6 py-4 font-medium flex-1 md:flex-none text-zinc-400 hover:text-zinc-200">🔁 Recurring</button>
     <button onclick="switchTab(8)" id="tab-parent" style="display:none" class="tab-btn">👨‍👦 Dashboard</button>
@@ -628,6 +632,12 @@ function hideViewAsBanner(){
             </button>
           </div>
           <div id="live-points-display"></div>
+        </div>
+
+        <!-- Streaks (v8) -->
+        <div class="card bg-zinc-900 rounded-3xl p-6">
+          <h3 class="font-semibold mb-4 flex items-center gap-2"><i class="fas fa-fire text-orange-400"></i> Activity Streaks</h3>
+          <div id="v8-streak-flames" class="space-y-2"></div>
         </div>
 
         <!-- Badges -->
@@ -993,6 +1003,9 @@ function hideViewAsBanner(){
 
   <!-- ════════════════ JOB SEARCH TAB (v8) ════════════════ -->
   <div id="tab-content-9" class="tab-content hidden"><div id="v8-jobsearch"></div></div>
+
+  <!-- ════════════════ STICKER BOOK TAB (v8) ════════════════ -->
+  <div id="tab-content-10" class="tab-content hidden"><div id="v8-stickerbook"></div></div>
 
   <!-- Dashboard Tab -->
   <div id="tab-content-8" class="tab-content" style="min-height:400px">
@@ -3286,7 +3299,6 @@ function restoreLynxBackup(){
 
 </div><!-- /main-app -->
 
-
 <script>
 // ════════════════════════════════════════════════════════════════
 // LynxTrack v8 engine
@@ -3807,24 +3819,139 @@ if(document.readyState!=='loading') v8InitForm();
 
 // ── Live-build compatibility: week key + export include job search ──
 if(typeof weekKeyForDate==='function'){ weekKeyForDate=function(d){ return weekKeyOf(v8DateStr(d)); }; }
+exportRawJSON=function(){
+  var exportObj={
+    exportedAt:new Date().toISOString(),
+    exportedForUid:_currentUser?_currentUser.uid:null,
+    exportedForUser:_currentUser?(_currentUser.displayName||_currentUser.email):null,
+    viewingAsSon:(typeof _viewingAsSon!=='undefined')&&!!_viewingAsSon,
+    weekGoal:data.weekGoal, logs:data.logs||[], tasks:data.tasks||[], tomorrowPlans:data.tomorrowPlans||[],
+    futurePlans:data.futurePlans||[], goals:data.goals||[], submissions:data.submissions||[], badges:data.badges||[],
+    weeklyPointsHistory:data.weeklyPointsHistory||[], planEvents:data.planEvents||[], recurringTasks:data.recurringTasks||[],
+    applications:data.applications||[], milestones:data.milestones||{}, stickers:data.stickers||{}
+  };
+  var blob=new Blob([JSON.stringify(exportObj,null,2)],{type:'application/json'});
+  var url=URL.createObjectURL(blob), a=document.createElement('a');
+  a.href=url; a.download='lynxtrack-rawdata-'+localDateStr()+'.json';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(function(){URL.revokeObjectURL(url);},1000);
+  showToast('📦 Raw backup exported — check your downloads.');
+};
+
+// ── Human-readable Export Report (overrides v7's raw-JSON exportData) ──
 if(typeof exportData==='function'){
   exportData=function(){
-    var exportObj={
-      exportedAt:new Date().toISOString(),
-      exportedForUid:_currentUser?_currentUser.uid:null,
-      exportedForUser:_currentUser?(_currentUser.displayName||_currentUser.email):null,
-      viewingAsSon:(typeof _viewingAsSon!=='undefined')&&!!_viewingAsSon,
-      weekGoal:data.weekGoal, logs:data.logs||[], tasks:data.tasks||[], tomorrowPlans:data.tomorrowPlans||[],
-      futurePlans:data.futurePlans||[], goals:data.goals||[], submissions:data.submissions||[], badges:data.badges||[],
-      weeklyPointsHistory:data.weeklyPointsHistory||[], planEvents:data.planEvents||[], recurringTasks:data.recurringTasks||[],
-      applications:data.applications||[], milestones:data.milestones||{}
-    };
-    var blob=new Blob([JSON.stringify(exportObj,null,2)],{type:'application/json'});
-    var url=URL.createObjectURL(blob), a=document.createElement('a');
-    a.href=url; a.download='lynxtrack-export-'+localDateStr()+'.json';
-    document.body.appendChild(a); a.click(); document.body.removeChild(a);
-    setTimeout(function(){URL.revokeObjectURL(url);},1000);
-    showToast('📦 Data exported — check your downloads.');
+    var logs=(data.logs||[]).slice().sort(function(a,b){return a.date<b.date?1:a.date>b.date?-1:0;});
+    var totalHrs=logs.reduce(function(s,l){return s+(l.hours||0);},0);
+    var catTotals={};
+    logs.forEach(function(l){ var c=normalizeCat(l.category); catTotals[c]=(catTotals[c]||0)+(l.hours||0); });
+    var catRows=Object.entries(catTotals).sort(function(a,b){return b[1]-a[1];})
+      .map(function(e){return '<tr><td>'+esc(e[0])+'</td><td class="num">'+e[1].toFixed(1)+'h</td></tr>';}).join('');
+
+    var earnedBadgeIds={}; (data.badges||[]).forEach(function(b){earnedBadgeIds[b.id]=true;});
+    var badgeRows=BADGE_DEFS.map(function(d){
+      var got=!!earnedBadgeIds[d.id];
+      return '<tr class="'+(got?'':'dim')+'"><td>'+d.emoji+' '+esc(d.name)+'</td><td>'+esc(d.desc)+'</td><td>'+(got?'✅ Earned':'—')+'</td></tr>';
+    }).join('');
+    var badgeCount=BADGE_DEFS.filter(function(d){return earnedBadgeIds[d.id];}).length;
+
+    var owned=data.stickers||{};
+    var bySet={};
+    STICKER_DEFS.forEach(function(s){ (bySet[s.set]=bySet[s.set]||[]).push(s); });
+    var stickerSections=Object.keys(bySet).map(function(setName){
+      var rows=bySet[setName].map(function(s){
+        var c=(owned[s.id]||{}).count||0;
+        var gold=c>=3;
+        return '<tr class="'+(c?'':'dim')+'"><td>'+s.emoji+' '+esc(s.name)+(gold?' ✨':'')+'</td><td>'+esc(s.rarity)+'</td><td class="num">'+(c||'—')+'</td></tr>';
+      }).join('');
+      return '<h3>'+esc(setName)+'</h3><table><tr><th>Sticker</th><th>Rarity</th><th>Owned</th></tr>'+rows+'</table>';
+    }).join('');
+    var stickerTotal=Object.keys(owned).reduce(function(s,id){return s+((owned[id]&&owned[id].count)||0);},0);
+    var stickerUnique=Object.keys(owned).filter(function(id){return owned[id]&&owned[id].count>0;}).length;
+
+    var streakRows=V8_STREAK_CATS.map(function(sc){
+      var n=v8CatCurrentStreak(data, sc.key);
+      return '<tr><td>'+sc.icon+' '+esc(sc.label)+'</td><td class="num">'+n+' day'+(n===1?'':'s')+'</td></tr>';
+    }).join('');
+
+    var apps=(data.applications||[]).slice().sort(function(a,b){return (a.date<b.date)?1:-1;});
+    var statusCounts={};
+    apps.forEach(function(a){ statusCounts[a.status]=(statusCounts[a.status]||0)+1; });
+    var statusLine=Object.entries(statusCounts).map(function(e){return e[0]+': '+e[1];}).join('  |  ')||'No applications logged yet.';
+    var appRows=apps.slice(0,25).map(function(a){
+      return '<tr><td>'+esc(a.date||'')+'</td><td>'+esc(a.employer||'')+'</td><td>'+esc(a.role||'')+'</td><td>'+esc(a.status||'')+'</td></tr>';
+    }).join('');
+
+    var milestoneRows=V8_MILESTONES.map(function(m){
+      var hit=data.milestones&&data.milestones[m.id];
+      return '<tr class="'+(hit?'':'dim')+'"><td>'+m.emoji+' '+esc(m.name)+'</td><td>'+(hit?'✅ '+esc(hit.date):'—')+'</td></tr>';
+    }).join('');
+    var milestoneCount=V8_MILESTONES.filter(function(m){return data.milestones&&data.milestones[m.id];}).length;
+
+    var wph=(data.weeklyPointsHistory||[]).slice().sort(function(a,b){return a.weekKey<b.weekKey?1:-1;});
+    var subsByWeek={}; (data.submissions||[]).forEach(function(s){subsByWeek[s.weekKey]=s;});
+    var weekRows=wph.slice(0,20).map(function(w){
+      var sub=subsByWeek[w.weekKey];
+      var allow=sub&&sub.allowance?('$'+sub.allowance.toFixed(2)):'—';
+      return '<tr><td>'+esc(w.weekKey)+'</td><td class="num">'+w.pts+'</td><td class="num">'+(w.totalHrs||0).toFixed(1)+'h</td><td>'+(w.hitTarget?'✅':'—')+'</td><td class="num">'+allow+'</td></tr>';
+    }).join('');
+
+    var actRows=logs.slice(0,40).map(function(l){
+      return '<tr><td>'+esc(l.date)+'</td><td class="num">'+l.hours+'h</td><td>'+esc(l.activity)+'</td><td>'+esc(normalizeCat(l.category))+'</td></tr>';
+    }).join('');
+
+    var generatedFor=_currentUser?(_currentUser.displayName||_currentUser.email):'—';
+    var reportHtml='<!doctype html><html><head><meta charset="utf-8"><title>LynxTrack Report — '+localDateStr()+'</title>'
+      +'<style>'
+      +'body{font-family:-apple-system,Segoe UI,Roboto,sans-serif;max-width:860px;margin:2rem auto;padding:0 1.5rem;color:#18181b;background:#fff;line-height:1.5}'
+      +'h1{font-size:1.5rem;margin-bottom:.1rem}'
+      +'h2{font-size:1.1rem;margin-top:2rem;border-bottom:2px solid #e4e4e7;padding-bottom:.3rem}'
+      +'h3{font-size:.95rem;margin-top:1rem;color:#52525b}'
+      +'.sub{color:#71717a;font-size:.85rem;margin-bottom:1.5rem}'
+      +'table{width:100%;border-collapse:collapse;margin:.5rem 0 1rem;font-size:.9rem}'
+      +'th{text-align:left;color:#71717a;font-weight:600;padding:.35rem .5rem;border-bottom:1px solid #e4e4e7}'
+      +'td{padding:.35rem .5rem;border-bottom:1px solid #f4f4f5}'
+      +'tr.dim td{color:#a1a1aa}'
+      +'.num{text-align:right;font-variant-numeric:tabular-nums}'
+      +'.stats{display:flex;gap:1rem;margin:1rem 0;flex-wrap:wrap}'
+      +'.stat{background:#fafafa;border:1px solid #e4e4e7;border-radius:12px;padding:.75rem 1.25rem;text-align:center;min-width:110px}'
+      +'.stat b{display:block;font-size:1.4rem}'
+      +'.stat span{font-size:.75rem;color:#71717a}'
+      +'@media print{body{margin:0;padding:0 .5rem}}'
+      +'</style></head><body>'
+      +'<h1>🐾 LynxTrack Report</h1>'
+      +'<div class="sub">Generated '+new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'})+' for '+esc(generatedFor)+'</div>'
+      +'<div class="stats">'
+        +'<div class="stat"><b>'+totalHrs.toFixed(1)+'h</b><span>total hours logged</span></div>'
+        +'<div class="stat"><b>'+logs.length+'</b><span>activities logged</span></div>'
+        +'<div class="stat"><b>'+badgeCount+'/'+BADGE_DEFS.length+'</b><span>badges earned</span></div>'
+        +'<div class="stat"><b>'+stickerUnique+'/'+STICKER_DEFS.length+'</b><span>stickers collected</span></div>'
+        +'<div class="stat"><b>'+apps.length+'</b><span>job applications</span></div>'
+        +'<div class="stat"><b>'+milestoneCount+'/'+V8_MILESTONES.length+'</b><span>milestones hit</span></div>'
+      +'</div>'
+      +'<h2>Hours by Category (all-time)</h2><table><tr><th>Category</th><th>Hours</th></tr>'+(catRows||'<tr><td colspan="2">No activity logged yet.</td></tr>')+'</table>'
+      +'<h2>Activity Streaks (current)</h2><table><tr><th>Category</th><th>Current streak</th></tr>'+streakRows+'</table>'
+      +'<h2>Badges</h2><table><tr><th>Badge</th><th>Description</th><th>Status</th></tr>'+badgeRows+'</table>'
+      +'<h2>Sticker Collection</h2>'+stickerSections
+      +'<h2>Job Search</h2><div class="sub">'+statusLine+'</div><table><tr><th>Date</th><th>Employer</th><th>Role</th><th>Status</th></tr>'+(appRows||'<tr><td colspan="4">No applications logged yet.</td></tr>')+'</table>'
+      +'<h3>Milestones</h3><table><tr><th>Milestone</th><th>Status</th></tr>'+milestoneRows+'</table>'
+      +'<h2>Weekly Points History</h2><table><tr><th>Week</th><th>Points</th><th>Hours</th><th>Hit goal</th><th>Allowance</th></tr>'+(weekRows||'<tr><td colspan="5">No weeks submitted yet.</td></tr>')+'</table>'
+      +'<h2>Recent Activity (last 40)</h2><table><tr><th>Date</th><th>Hours</th><th>Activity</th><th>Category</th></tr>'+(actRows||'<tr><td colspan="4">No activity logged yet.</td></tr>')+'</table>'
+      +'<p class="sub" style="margin-top:2rem">LynxTrack — Learn. Grow. Pounce. 🐾</p>'
+      +'</body></html>';
+
+    var blob=new Blob([reportHtml],{type:'text/html'});
+    var url=URL.createObjectURL(blob);
+    var win=window.open(url,'_blank');
+    if(!win){
+      var a=document.createElement('a');
+      a.href=url; a.download='lynxtrack-report-'+localDateStr()+'.html';
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      showToast('📄 Report downloaded — check your downloads (allow pop-ups to view it directly next time).',4000);
+    } else {
+      showToast('📄 Report opened in a new tab — use your browser\'s Print to save it as a PDF.',3500);
+    }
+    setTimeout(function(){URL.revokeObjectURL(url);},5000);
   };
 }
 
@@ -3847,6 +3974,265 @@ function v8ParentHeaderButton(){
 }
 (function(orig){ renderAll=function(){ orig(); v8ParentHeaderButton(); }; })(renderAll);
 
+</script>
+
+<script>
+// ════════════════════════════════════════════════════════════════
+// LynxTrack v8.1 — Sticker Book + per-activity streaks
+// Added per Ben's follow-up answers (Q9-Q13): no new trackable
+// launch-plan items, Mon/Wed/Fri schedule via Recurring Tasks (already
+// supported), and — per Q12 — NO low-streak nudge/penalty messaging.
+// A broken streak just quietly resets; nothing calls attention to it.
+// ════════════════════════════════════════════════════════════════
+
+// ─── Sticker catalog ──────────────────────────────────────────
+// Rarity pool used for RANDOM drops (applications, weekly submit) is
+// common + rare only. Epic/legendary are reserved for milestones and
+// day-30 streak rewards, so they always feel earned, not lucky.
+// Owning 3+ of the same sticker displays it in its "gold" variant —
+// no inventory is consumed, it's just a display threshold.
+var STICKER_DEFS = [
+  // Ragdoll Crew
+  {id:'rc1', name:'Ragdoll Kit',       emoji:'🐱', set:'Ragdoll Crew',    rarity:'common'},
+  {id:'rc2', name:'Tabby Pouncer',     emoji:'🐈', set:'Ragdoll Crew',    rarity:'common'},
+  {id:'rc3', name:'Snowpaw Ragdoll',   emoji:'🐾', set:'Ragdoll Crew',    rarity:'rare'},
+  {id:'rc4', name:'Blue-Eyed Floof',   emoji:'😺', set:'Ragdoll Crew',    rarity:'rare'},
+  // Lynx Pack
+  {id:'lp1', name:'Bobtail Lynx',      emoji:'🐆', set:'Lynx Pack',       rarity:'rare'},
+  {id:'lp2', name:'Tundra Lynx',       emoji:'🐯', set:'Lynx Pack',       rarity:'rare'},
+  {id:'lp3', name:'Alpha Lynx',        emoji:'🦁', set:'Lynx Pack',       rarity:'epic'},
+  {id:'lp4', name:'Spirit Lynx',       emoji:'✨', set:'Lynx Pack',       rarity:'legendary'},
+  // Frost Realm — original creatures, not from any existing game
+  {id:'fr1', name:'Shield Wolf',       emoji:'🐺', set:'Frost Realm',     rarity:'rare'},
+  {id:'fr2', name:'Frost Wyrm Cub',    emoji:'🐉', set:'Frost Realm',     rarity:'rare'},
+  {id:'fr3', name:'Ember Drake',       emoji:'🔥', set:'Frost Realm',     rarity:'epic'},
+  {id:'fr4', name:'Elder Frostmaw',    emoji:'🧊', set:'Frost Realm',     rarity:'legendary'},
+  // Pocket Critters — original creatures, not from any existing game
+  {id:'pc1', name:'Sparkit',           emoji:'⚡', set:'Pocket Critters', rarity:'common'},
+  {id:'pc2', name:'Leafling',          emoji:'🍃', set:'Pocket Critters', rarity:'common'},
+  {id:'pc3', name:'Tidewisp',          emoji:'💧', set:'Pocket Critters', rarity:'rare'},
+  {id:'pc4', name:'Glowmoth',          emoji:'🌙', set:'Pocket Critters', rarity:'rare'},
+  {id:'pc5', name:'Boltqueen',         emoji:'👑', set:'Pocket Critters', rarity:'epic'},
+  // Kart Crew — original characters, not from any existing game
+  {id:'kc1', name:'Zoomhedge',         emoji:'🦔', set:'Kart Crew',       rarity:'common'},
+  {id:'kc2', name:'Coin Cub',          emoji:'🐻', set:'Kart Crew',       rarity:'common'},
+  {id:'kc3', name:'Blaze Pup',         emoji:'🐶', set:'Kart Crew',       rarity:'rare'},
+  {id:'kc4', name:'Nitro Fox',         emoji:'🦊', set:'Kart Crew',       rarity:'epic'},
+  {id:'kc5', name:'Golden Kart Champ', emoji:'🏆', set:'Kart Crew',       rarity:'legendary'},
+];
+function v8StickerDef(id){ return STICKER_DEFS.find(function(s){return s.id===id;}); }
+var V8_RARITY_COLOR = {common:'#a1a1aa', rare:'#60a5fa', epic:'#c084fc', legendary:'#facc15'};
+
+var V8_RANDOM_POOL_COMMON = ['rc1','rc2','fr1','pc1','pc2','kc1','kc2'];
+var V8_RANDOM_POOL_RARE   = ['rc3','rc4','lp1','lp2','fr2','pc3','pc4','kc3'];
+
+function v8AwardSticker(id, reason){
+  if(!data.stickers) data.stickers={};
+  if(!data.stickers[id]) data.stickers[id]={count:0};
+  data.stickers[id].count++;
+  var def=v8StickerDef(id); if(!def) return;
+  var wasGold=(data.stickers[id].count-1)>=3;
+  var nowGold=data.stickers[id].count>=3;
+  if(nowGold && !wasGold){
+    showToast('✨ GOLD UPGRADE: '+def.emoji+' '+def.name+'!',3500);
+  } else {
+    showToast(def.emoji+' Sticker earned: '+def.name+(reason?' ('+reason+')':''),3000);
+  }
+}
+function v8RandomDrop(pool){ return pool[Math.floor(Math.random()*pool.length)]; }
+// Applications: modest chance of a common/rare sticker per log, so it
+// doesn't feel mandatory but is a nice surprise.
+function v8MaybeDropForApplication(){
+  var roll=Math.random();
+  if(roll<0.35) v8AwardSticker(v8RandomDrop(V8_RANDOM_POOL_COMMON),'application');
+  else if(roll<0.45) v8AwardSticker(v8RandomDrop(V8_RANDOM_POOL_RARE),'application');
+}
+// Weekly submit: guaranteed drop, better odds at higher points tiers.
+function v8DropForWeeklySubmit(pts){
+  if(pts>=550) v8AwardSticker(v8RandomDrop(V8_RANDOM_POOL_RARE),'weekly submit');
+  else v8AwardSticker(v8RandomDrop(V8_RANDOM_POOL_COMMON),'weekly submit');
+}
+
+// ─── Job-search milestone stickers ───────────────────────────
+var V8_MILESTONE_STICKERS = {
+  first_app:'fr2', rvcc_appt:'rc3', dvrs_filed:'lp1', first_full_week:'pc3',
+  streak_3:'fr3', first_interview:'lp3', school_app:'kc3', first_offer:'kc5'
+};
+function v8CheckMilestoneStickers(){
+  if(!data._stickerMsAwarded) data._stickerMsAwarded={};
+  var md=v8MilestoneDates(data);
+  V8_MILESTONES.forEach(function(m){
+    if(md[m.id] && !data._stickerMsAwarded[m.id]){
+      data._stickerMsAwarded[m.id]=true;
+      var sid=V8_MILESTONE_STICKERS[m.id];
+      if(sid) v8AwardSticker(sid,'milestone: '+m.name);
+    }
+  });
+}
+// Weekly application-goal hit: guaranteed rare sticker, once per week.
+function v8CheckWeeklyGoalSticker(){
+  if(!data._stickerGoalWeeks) data._stickerGoalWeeks={};
+  var wk=getWeekKey();
+  var aw=v8AppWeeks(data).weeks[wk];
+  if(aw && aw.hit && !data._stickerGoalWeeks[wk]){
+    data._stickerGoalWeeks[wk]=true;
+    v8AwardSticker(v8RandomDrop(V8_RANDOM_POOL_RARE),'5-application week');
+  }
+}
+
+// ─── Per-activity streaks: Fitness / Learning / Chores ───────
+// "Chores" tracks the Personal/Family category (LynxTrack has no
+// separate Chores category — this is the closest existing match).
+// Rule (Ben & Dad, Q11-Q12): 1 missed day is fine and doesn't break
+// the streak; 2 missed days in a row resets it. Payout is +3 x
+// streak-day-number, capped at +30/day once the streak reaches day
+// 10, resetting to +3 on a break. No warning or "about to lose it"
+// messaging — ever, per Ben's own stated preference.
+var V8_STREAK_CATS = [
+  {key:'Fitness',          label:'Fitness',  icon:'💪'},
+  {key:'Learning',         label:'Learning', icon:'📚'},
+  {key:'Personal/Family',  label:'Chores',   icon:'🧹'}
+];
+var V8_STREAK_STICKERS = {
+  'Fitness':         {7:'kc1', 14:'kc3', 30:'kc4'},
+  'Learning':        {7:'pc2', 14:'pc4', 30:'pc5'},
+  'Personal/Family': {7:'rc2', 14:'rc4', 30:'lp3'}
+};
+
+function v8CatLoggedDays(d, cat){
+  var days={};
+  (d.logs||[]).filter(v8LoggedOnTime).forEach(function(l){
+    if(normalizeCat(l.category)===cat) days[l.date]=true;
+  });
+  return days;
+}
+// Streak ending ON a given date (caller guarantees that date is logged).
+function v8CatStreakUpTo(d, cat, dateStr){
+  var days=v8CatLoggedDays(d,cat), streak=0, misses=0, cur=dateStr, guard=0;
+  while(guard++<400){
+    if(days[cur]){ streak++; misses=0; }
+    else { misses++; if(misses>=2) break; }
+    cur=v8AddDays(cur,-1);
+  }
+  return streak;
+}
+// Current streak as of right now (today not yet logged doesn't break it;
+// exactly one prior miss is tolerated, matching the rule above).
+function v8CatCurrentStreak(d, cat){
+  var days=v8CatLoggedDays(d,cat);
+  var cur=v8Today();
+  if(!days[cur]) cur=v8AddDays(cur,-1);
+  if(!days[cur]){
+    var prev=v8AddDays(cur,-1);
+    if(!days[prev]) return 0;
+    return v8CatStreakUpTo(d,cat,prev);
+  }
+  return v8CatStreakUpTo(d,cat,cur);
+}
+function v8StreakDayBonus(n){ return 3*Math.min(n,10); }
+
+// Fold per-category streak bonuses into the weekly points breakdown.
+(function(orig){
+  calcWeekPointsFor=function(d, wk){
+    var r=orig(d, wk);
+    V8_STREAK_CATS.forEach(function(sc){
+      var days=v8CatLoggedDays(d, sc.key);
+      var bonus=0, n=0;
+      Object.keys(days).forEach(function(ds){
+        if(weekKeyOf(ds)===wk){ bonus+=v8StreakDayBonus(v8CatStreakUpTo(d, sc.key, ds)); n++; }
+      });
+      if(bonus){ r.pts+=bonus; r.breakdown.push({label:sc.icon+' '+sc.label+' streak bonus ('+n+' day'+(n===1?'':'s')+' logged)', pts:bonus}); }
+    });
+    return r;
+  };
+})(calcWeekPointsFor);
+
+// Award day-7/14/30 streak stickers the moment a streak reaches them.
+function v8CheckStreakStickers(){
+  if(!data._streakStickersAwarded) data._streakStickersAwarded={};
+  V8_STREAK_CATS.forEach(function(sc){
+    var n=v8CatCurrentStreak(data, sc.key);
+    var thresholds=V8_STREAK_STICKERS[sc.key];
+    [7,14,30].forEach(function(t){
+      var key=sc.key+'_'+t;
+      if(n>=t && !data._streakStickersAwarded[key]){
+        data._streakStickersAwarded[key]=true;
+        v8AwardSticker(thresholds[t], sc.label+' '+t+'-day streak');
+      }
+    });
+  });
+}
+
+function v8RenderStreakFlames(){
+  var el=document.getElementById('v8-streak-flames'); if(!el) return;
+  el.innerHTML=V8_STREAK_CATS.map(function(sc){
+    var n=v8CatCurrentStreak(data, sc.key);
+    return '<div class="flex items-center justify-between bg-zinc-800 rounded-xl px-3 py-2">'
+      +'<span class="text-sm text-zinc-300">'+sc.icon+' '+sc.label+'</span>'
+      +'<span class="text-sm font-semibold '+(n>0?'text-orange-400':'text-zinc-600')+'">'+(n>0?'🔥 ':'')+n+' day'+(n===1?'':'s')+'</span>'
+      +'</div>';
+  }).join('');
+}
+
+// ─── Sticker Book tab ──────────────────────────────────────────
+function renderStickerBook(){
+  var el=document.getElementById('v8-stickerbook'); if(!el) return;
+  var owned=data.stickers||{};
+  var totalOwned=STICKER_DEFS.filter(function(s){return owned[s.id]&&owned[s.id].count>0;}).length;
+  var sets={};
+  STICKER_DEFS.forEach(function(s){ if(!sets[s.set]) sets[s.set]=[]; sets[s.set].push(s); });
+  var setsHtml=Object.keys(sets).map(function(setName){
+    var cards=sets[setName].map(function(s){
+      var o=owned[s.id];
+      var has=o && o.count>0;
+      var gold=has && o.count>=3;
+      var rCol=V8_RARITY_COLOR[s.rarity];
+      var bg = !has ? 'background:#18181b;opacity:.35;' : gold ? 'background:linear-gradient(145deg,#3f2f05,#1c1402);border:1px solid #d4af37;' : 'background:#27272a;border:1px solid '+rCol+';';
+      return '<div style="'+bg+'border-radius:14px;padding:14px;text-align:center;position:relative">'
+        +(gold?'<div style="position:absolute;top:6px;right:8px;font-size:.6rem;color:#facc15;font-weight:700">GOLD</div>':'')
+        +'<div style="font-size:2rem;'+(has?'':'filter:grayscale(1)')+'">'+s.emoji+'</div>'
+        +'<div style="font-size:.75rem;margin-top:4px;color:'+(has?'#f4f4f5':'#52525b')+'">'+esc(s.name)+'</div>'
+        +'<div style="font-size:.65rem;margin-top:2px;color:'+rCol+'">'+s.rarity+(has&&o.count>1?' · x'+o.count:'')+'</div>'
+        +'</div>';
+    }).join('');
+    return '<div class="mb-6"><div class="text-xs text-zinc-500 font-semibold uppercase tracking-wide mb-2">'+esc(setName)+'</div>'
+      +'<div class="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-3">'+cards+'</div></div>';
+  }).join('');
+  el.innerHTML='<div class="max-w-4xl mx-auto">'
+    +'<div class="flex items-center justify-between mb-6"><div>'
+    +'<h2 class="text-2xl font-bold flex items-center gap-3"><i class="fas fa-award text-yellow-400"></i> Sticker Book</h2>'
+    +'<p class="text-zinc-400 text-sm mt-1">Earned from applications, weekly submits, milestones, and activity streaks</p>'
+    +'</div><div class="text-sm text-zinc-500">'+totalOwned+' / '+STICKER_DEFS.length+' collected</div></div>'
+    +setsHtml+'</div>';
+}
+
+// ─── Hooks: wire the new tab, the drops, and the sticker checks ──
+(function(orig){ switchTab=function(n,dir){ orig(n,dir); if(n===10) renderStickerBook(); }; })(switchTab);
+(function(orig){
+  renderAll=function(){
+    orig();
+    v8RenderStreakFlames();
+    v8CheckStreakStickers();
+    v8CheckMilestoneStickers();
+    v8CheckWeeklyGoalSticker();
+    if(_activeTab===10) renderStickerBook();
+  };
+})(renderAll);
+(function(orig){
+  v8AddApp=function(){
+    var before=(data.applications||[]).length;
+    orig();
+    if((data.applications||[]).length>before) v8MaybeDropForApplication();
+  };
+})(v8AddApp);
+(function(orig){
+  confirmSubmit=function(){
+    var wk=getWeekKey();
+    var r=calcWeekPoints(wk);
+    orig();
+    v8DropForWeeklySubmit(r.pts);
+  };
+})(confirmSubmit);
 </script>
 </body>
 </html>
